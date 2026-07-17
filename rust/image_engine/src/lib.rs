@@ -1,29 +1,31 @@
+pub mod api;
+mod frb_generated;
+
 use image::codecs::jpeg::JpegEncoder;
-use image::codecs::png::PngEncoder;
+use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{ColorType, DynamicImage, ImageEncoder, ImageFormat};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum OutputFormat {
+#[derive(Debug, Clone, Copy)]
+pub enum InternalOutputFormat {
     Jpeg,
     Png,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompressionRequest {
+#[derive(Debug, Clone)]
+pub struct InternalCompressionRequest {
     pub input_path: PathBuf,
     pub output_path: PathBuf,
     pub quality: u8,
     pub png_level: u8,
     pub max_long_edge: Option<u32>,
-    pub output_format: OutputFormat,
+    pub output_format: InternalOutputFormat,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompressionResponse {
+#[derive(Debug, Clone)]
+pub struct InternalCompressionResponse {
     pub output_path: PathBuf,
     pub original_bytes: u64,
     pub compressed_bytes: u64,
@@ -41,9 +43,9 @@ pub enum ImageEngineError {
     Image(#[from] image::ImageError),
 }
 
-pub fn compress_image(
-    request: &CompressionRequest,
-) -> Result<CompressionResponse, ImageEngineError> {
+pub fn compress_image_internal(
+    request: &InternalCompressionRequest,
+) -> Result<InternalCompressionResponse, ImageEngineError> {
     let input_bytes = fs::read(&request.input_path)?;
     let original_bytes = input_bytes.len() as u64;
     let mut image =
@@ -54,8 +56,8 @@ pub fn compress_image(
     }
 
     let encoded = match request.output_format {
-        OutputFormat::Jpeg => encode_jpeg(&image, request.quality)?,
-        OutputFormat::Png => encode_png(&image)?,
+        InternalOutputFormat::Jpeg => encode_jpeg(&image, request.quality)?,
+        InternalOutputFormat::Png => encode_png(&image, request.png_level)?,
     };
 
     if let Some(parent) = request.output_path.parent() {
@@ -64,7 +66,7 @@ pub fn compress_image(
 
     fs::write(&request.output_path, &encoded)?;
 
-    Ok(CompressionResponse {
+    Ok(InternalCompressionResponse {
         output_path: request.output_path.clone(),
         original_bytes,
         compressed_bytes: encoded.len() as u64,
@@ -116,10 +118,14 @@ fn encode_jpeg(image: &DynamicImage, quality: u8) -> Result<Vec<u8>, ImageEngine
     Ok(output)
 }
 
-fn encode_png(image: &DynamicImage) -> Result<Vec<u8>, ImageEngineError> {
+fn encode_png(image: &DynamicImage, png_level: u8) -> Result<Vec<u8>, ImageEngineError> {
     let rgba = image.to_rgba8();
     let mut output = Vec::new();
-    let encoder = PngEncoder::new(&mut output);
+    let encoder = PngEncoder::new_with_quality(
+        &mut output,
+        map_png_compression(png_level),
+        FilterType::Adaptive,
+    );
     encoder.write_image(
         rgba.as_raw(),
         rgba.width(),
@@ -127,4 +133,12 @@ fn encode_png(image: &DynamicImage) -> Result<Vec<u8>, ImageEngineError> {
         ColorType::Rgba8.into(),
     )?;
     Ok(output)
+}
+
+fn map_png_compression(level: u8) -> CompressionType {
+    match level {
+        0..=3 => CompressionType::Fast,
+        4..=6 => CompressionType::Default,
+        _ => CompressionType::Best,
+    }
 }
