@@ -40,6 +40,9 @@ migrate_working_dir/
 **/.cargo-lock
 **/.rustc_info.json
 Cargo.lock
+/android/app/src/main/jniLibs/*/libimage_engine.so
+/ios/Flutter/Rust/
+/macos/Flutter/Rust/
 
 # Symbolication related
 app.*.symbols

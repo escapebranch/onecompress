@@ -1,5 +1,5 @@
 import '../data/datasources/file_picker_data_source.dart';
-import '../data/datasources/raster_image_engine_data_source.dart';
+import '../data/datasources/image_engine_data_source_factory.dart';
 import '../data/datasources/share_data_source.dart';
 import '../data/repositories/image_compression_repository_impl.dart';
 import '../domain/usecases/compress_images_use_case.dart';
@@ -26,7 +26,7 @@ class ImageCompressionDependencies {
   factory ImageCompressionDependencies.create() {
     final repository = ImageCompressionRepositoryImpl(
       filePickerDataSource: FilePickerDataSource(),
-      imageEngineDataSource: RasterImageEngineDataSource(),
+      imageEngineDataSource: createImageEngineDataSource(),
       shareDataSource: ShareDataSource(),
     );
 

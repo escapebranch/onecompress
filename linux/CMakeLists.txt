@@ -54,11 +54,29 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  set(RUST_CARGO_ARGS "")
+  set(RUST_PROFILE_DIR "debug")
+else()
+  set(RUST_CARGO_ARGS --release)
+  set(RUST_PROFILE_DIR "release")
+endif()
+
+set(RUST_ENGINE_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/../rust/image_engine/Cargo.toml")
+set(RUST_ENGINE_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/../rust/image_engine/target/${RUST_PROFILE_DIR}/libimage_engine.so")
+
+add_custom_target(rust_image_engine_build ALL
+  COMMAND cargo build --manifest-path "${RUST_ENGINE_MANIFEST}" ${RUST_CARGO_ARGS}
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  VERBATIM
+)
+
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+add_dependencies(${BINARY_NAME} rust_image_engine_build)
 
 # Only the install-generated bundle's copy of the executable will launch
 # correctly, since the resources must in the right relative locations. To avoid
@@ -105,6 +123,9 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endforeach(bundled_library)
+
+install(FILES "${RUST_ENGINE_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
 
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/linux/")

@@ -4,6 +4,27 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val repositoryRoot = rootProject.projectDir.parentFile
+val rustAndroidBuildMode =
+    providers.provider {
+        val requestedTasks = gradle.startParameter.taskNames.joinToString(" ").lowercase()
+        if ("release" in requestedTasks || "profile" in requestedTasks) "release" else "debug"
+    }
+
+val buildRustImageEngine by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Builds the Rust image engine for Android ABIs."
+    workingDir = repositoryRoot
+    commandLine(
+        "sh",
+        "${repositoryRoot.absolutePath}/tool/build_rust_android.sh",
+        rustAndroidBuildMode.get(),
+    )
+    inputs.dir(repositoryRoot.resolve("rust/image_engine/src"))
+    inputs.file(repositoryRoot.resolve("rust/image_engine/Cargo.toml"))
+    outputs.dir(projectDir.resolve("src/main/jniLibs"))
+}
+
 android {
     namespace = "com.example.onecompress"
     compileSdk = flutter.compileSdkVersion
@@ -32,6 +53,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    sourceSets.named("main") {
+        jniLibs.srcDir("src/main/jniLibs")
+    }
 }
 
 kotlin {
@@ -42,4 +67,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+tasks.named("preBuild") {
+    dependsOn(buildRustImageEngine)
 }

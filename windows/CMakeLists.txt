@@ -49,8 +49,26 @@ endfunction()
 set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
 add_subdirectory(${FLUTTER_MANAGED_DIR})
 
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  set(RUST_CARGO_ARGS "")
+  set(RUST_PROFILE_DIR "debug")
+else()
+  set(RUST_CARGO_ARGS --release)
+  set(RUST_PROFILE_DIR "release")
+endif()
+
+set(RUST_ENGINE_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/../rust/image_engine/Cargo.toml")
+set(RUST_ENGINE_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/../rust/image_engine/target/${RUST_PROFILE_DIR}/image_engine.dll")
+
+add_custom_target(rust_image_engine_build ALL
+  COMMAND cargo build --manifest-path "${RUST_ENGINE_MANIFEST}" ${RUST_CARGO_ARGS}
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  VERBATIM
+)
+
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
+add_dependencies(${BINARY_NAME} rust_image_engine_build)
 
 
 # Generated plugin build rules, which manage building the plugins and adding
@@ -86,6 +104,9 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+install(FILES "${RUST_ENGINE_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
 
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
