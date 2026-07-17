@@ -1,0 +1,41 @@
+import '../data/datasources/file_picker_data_source.dart';
+import '../data/datasources/raster_image_engine_data_source.dart';
+import '../data/datasources/share_data_source.dart';
+import '../data/repositories/image_compression_repository_impl.dart';
+import '../domain/usecases/compress_images_use_case.dart';
+import '../domain/usecases/pick_export_directory_use_case.dart';
+import '../domain/usecases/pick_images_use_case.dart';
+import '../domain/usecases/save_compressed_images_use_case.dart';
+import '../domain/usecases/share_compressed_images_use_case.dart';
+
+class ImageCompressionDependencies {
+  const ImageCompressionDependencies({
+    required this.pickImages,
+    required this.pickExportDirectory,
+    required this.compressImages,
+    required this.saveCompressedImages,
+    required this.shareCompressedImages,
+  });
+
+  final PickImagesUseCase pickImages;
+  final PickExportDirectoryUseCase pickExportDirectory;
+  final CompressImagesUseCase compressImages;
+  final SaveCompressedImagesUseCase saveCompressedImages;
+  final ShareCompressedImagesUseCase shareCompressedImages;
+
+  factory ImageCompressionDependencies.create() {
+    final repository = ImageCompressionRepositoryImpl(
+      filePickerDataSource: FilePickerDataSource(),
+      imageEngineDataSource: RasterImageEngineDataSource(),
+      shareDataSource: ShareDataSource(),
+    );
+
+    return ImageCompressionDependencies(
+      pickImages: PickImagesUseCase(repository),
+      pickExportDirectory: PickExportDirectoryUseCase(repository),
+      compressImages: CompressImagesUseCase(repository),
+      saveCompressedImages: SaveCompressedImagesUseCase(repository),
+      shareCompressedImages: ShareCompressedImagesUseCase(repository),
+    );
+  }
+}
