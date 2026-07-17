@@ -4,6 +4,21 @@ part 'compression_preset.freezed.dart';
 
 enum TargetFormat { auto, jpeg, png, webp }
 
+extension TargetFormatX on TargetFormat {
+  String get label {
+    switch (this) {
+      case TargetFormat.auto:
+        return 'Auto';
+      case TargetFormat.jpeg:
+        return 'JPEG';
+      case TargetFormat.png:
+        return 'PNG';
+      case TargetFormat.webp:
+        return 'WebP';
+    }
+  }
+}
+
 @freezed
 sealed class ImageResizeMode with _$ImageResizeMode {
   const factory ImageResizeMode.none() = _None;

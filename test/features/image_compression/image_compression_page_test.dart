@@ -12,7 +12,7 @@ import 'package:onecompress/features/image_compression/domain/usecases/save_comp
 import 'package:onecompress/features/image_compression/domain/usecases/share_compressed_images_use_case.dart';
 
 void main() {
-  testWidgets('renders image compression workspace', (tester) async {
+  testWidgets('renders OneCompress home dashboard and floating nav bar', (tester) async {
     final repository = ImageCompressionRepositoryImpl(
       filePickerDataSource: FilePickerDataSource(),
       imageEngineDataSource: RasterImageEngineDataSource(),
@@ -31,9 +31,13 @@ void main() {
       ),
     );
 
+    await tester.pumpAndSettle();
+
     expect(find.text('OneCompress'), findsOneWidget);
-    expect(find.text('Compression & Engine Settings'), findsOneWidget);
-    expect(find.text('Actions'), findsOneWidget);
-    expect(find.text('Select images'), findsOneWidget);
+    expect(find.text('Compress'), findsOneWidget);
+    expect(find.text('Upscale'), findsOneWidget);
+    expect(find.text('SOON'), findsOneWidget);
+    expect(find.text('Recents'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
   });
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
-import '../../../../core/utils/byte_formatter.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/action_tile.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../controllers/image_compression_controller.dart';
 
@@ -11,57 +13,46 @@ class CompressionActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SectionCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Actions', style: theme.textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(
-            'Pick your images, compress them as a batch, then save or share the outputs.',
-            style: theme.textTheme.bodyMedium,
+          ActionTile(
+            title: 'Select Images',
+            subtitle: 'Pick photos from gallery',
+            icon: HugeIcons.strokeRoundedImageAdd01,
+            iconColor: AppColors.info,
+            onTap: controller.pickImages,
+            showDivider: true,
           ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: controller.pickImages,
-            icon: const Icon(Icons.add_photo_alternate_outlined),
-            label: const Text('Select images'),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed:
-                controller.selectedImages.isEmpty || controller.isCompressing
+          ActionTile(
+            title: 'Compress Batch',
+            subtitle: 'Start compression process',
+            icon: HugeIcons.strokeRoundedArchive01,
+            iconColor: AppColors.warning,
+            onTap: controller.selectedImages.isEmpty || controller.isCompressing
                 ? null
                 : controller.compress,
-            icon: const Icon(Icons.auto_fix_high_outlined),
-            label: const Text('Compress batch'),
+            showDivider: true,
           ),
-          const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed: controller.compressedImages.isEmpty
+          ActionTile(
+            title: 'Save Outputs',
+            subtitle: 'Download compressed files',
+            icon: HugeIcons.strokeRoundedDownload01,
+            iconColor: AppColors.success,
+            onTap: controller.compressedImages.isEmpty
                 ? null
                 : controller.saveCompressedImages,
-            icon: const Icon(Icons.download_outlined),
-            label: const Text('Save compressed files'),
+            showDivider: true,
           ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: controller.compressedImages.isEmpty
+          ActionTile(
+            title: 'Share Files',
+            subtitle: 'Send compressed images',
+            icon: HugeIcons.strokeRoundedShare01,
+            iconColor: AppColors.primary,
+            onTap: controller.compressedImages.isEmpty
                 ? null
                 : controller.shareCompressedImages,
-            icon: const Icon(Icons.ios_share_outlined),
-            label: const Text('Share outputs'),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Original total: ${formatBytes(controller.totalOriginalBytes)}',
-            style: theme.textTheme.bodyMedium,
-          ),
-          Text(
-            'Compressed total: ${formatBytes(controller.totalCompressedBytes)}',
-            style: theme.textTheme.bodyMedium,
+            showDivider: false, // Last item has no divider
           ),
         ],
       ),
