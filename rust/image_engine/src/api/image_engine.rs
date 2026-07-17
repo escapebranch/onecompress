@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use rayon::prelude::*;
 use crate::compress_image_internal;
 
 #[derive(Debug, Clone, Copy)]
@@ -28,7 +29,7 @@ pub fn compress_image(request: CompressionRequest) -> Result<CompressionResponse
     let internal_request = crate::InternalCompressionRequest {
         input_path: PathBuf::from(request.input_path),
         output_path: PathBuf::from(request.output_path),
-        quality: request.quality,
+        quality: quality_clamp(request.quality),
         png_level: request.png_level,
         max_long_edge: request.max_long_edge,
         output_format: match request.output_format {
@@ -44,4 +45,23 @@ pub fn compress_image(request: CompressionRequest) -> Result<CompressionResponse
         original_bytes: response.original_bytes,
         compressed_bytes: response.compressed_bytes,
     })
+}
+
+pub fn compress_images_batch(
+    requests: Vec<CompressionRequest>,
+) -> Vec<Option<CompressionResponse>> {
+    requests
+        .into_par_iter()
+        .map(|req| compress_image(req).ok())
+        .collect()
+}
+
+fn quality_clamp(q: u8) -> u8 {
+    if q == 0 {
+        80
+    } else if q > 100 {
+        100
+    } else {
+        q
+    }
 }

@@ -6,11 +6,18 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `quality_clamp`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`
 
 Future<CompressionResponse> compressImage({
   required CompressionRequest request,
 }) => RustLib.instance.api.crateApiImageEngineCompressImage(request: request);
+
+Future<List<CompressionResponse?>> compressImagesBatch({
+  required List<CompressionRequest> requests,
+}) => RustLib.instance.api.crateApiImageEngineCompressImagesBatch(
+  requests: requests,
+);
 
 class CompressionRequest {
   final String inputPath;
