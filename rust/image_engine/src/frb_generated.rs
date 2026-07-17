@@ -127,6 +127,13 @@ impl SseDecode for String {
     }
 }
 
+impl SseDecode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
 impl SseDecode for crate::api::image_engine::CompressionRequest {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -134,7 +141,7 @@ impl SseDecode for crate::api::image_engine::CompressionRequest {
         let mut var_outputPath = <String>::sse_decode(deserializer);
         let mut var_quality = <u8>::sse_decode(deserializer);
         let mut var_pngLevel = <u8>::sse_decode(deserializer);
-        let mut var_maxLongEdge = <Option<u32>>::sse_decode(deserializer);
+        let mut var_resizeMode = <crate::api::image_engine::ResizeMode>::sse_decode(deserializer);
         let mut var_outputFormat =
             <crate::api::image_engine::OutputFormat>::sse_decode(deserializer);
         return crate::api::image_engine::CompressionRequest {
@@ -142,7 +149,7 @@ impl SseDecode for crate::api::image_engine::CompressionRequest {
             output_path: var_outputPath,
             quality: var_quality,
             png_level: var_pngLevel,
-            max_long_edge: var_maxLongEdge,
+            resize_mode: var_resizeMode,
             output_format: var_outputFormat,
         };
     }
@@ -159,6 +166,13 @@ impl SseDecode for crate::api::image_engine::CompressionResponse {
             original_bytes: var_originalBytes,
             compressed_bytes: var_compressedBytes,
         };
+    }
+}
+
+impl SseDecode for f32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_f32::<NativeEndian>().unwrap()
     }
 }
 
@@ -222,17 +236,6 @@ impl SseDecode for Option<crate::api::image_engine::CompressionResponse> {
     }
 }
 
-impl SseDecode for Option<u32> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<u32>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
 impl SseDecode for crate::api::image_engine::OutputFormat {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -242,6 +245,41 @@ impl SseDecode for crate::api::image_engine::OutputFormat {
             1 => crate::api::image_engine::OutputFormat::Png,
             _ => unreachable!("Invalid variant for OutputFormat: {}", inner),
         };
+    }
+}
+
+impl SseDecode for crate::api::image_engine::ResizeMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::image_engine::ResizeMode::None;
+            }
+            1 => {
+                let mut var_value = <u32>::sse_decode(deserializer);
+                return crate::api::image_engine::ResizeMode::MaxLongEdge { value: var_value };
+            }
+            2 => {
+                let mut var_width = <u32>::sse_decode(deserializer);
+                let mut var_height = <u32>::sse_decode(deserializer);
+                let mut var_keepAspectRatio = <bool>::sse_decode(deserializer);
+                return crate::api::image_engine::ResizeMode::ExactSize {
+                    width: var_width,
+                    height: var_height,
+                    keep_aspect_ratio: var_keepAspectRatio,
+                };
+            }
+            3 => {
+                let mut var_percentage = <f32>::sse_decode(deserializer);
+                return crate::api::image_engine::ResizeMode::ScalePercentage {
+                    percentage: var_percentage,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -269,13 +307,6 @@ impl SseDecode for u8 {
 impl SseDecode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
-}
-
-impl SseDecode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u8().unwrap() != 0
-    }
 }
 
 fn pde_ffi_dispatcher_primary_impl(
@@ -320,7 +351,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::image_engine::CompressionRequ
             self.output_path.into_into_dart().into_dart(),
             self.quality.into_into_dart().into_dart(),
             self.png_level.into_into_dart().into_dart(),
-            self.max_long_edge.into_into_dart().into_dart(),
+            self.resize_mode.into_into_dart().into_dart(),
             self.output_format.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -380,11 +411,57 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::image_engine::OutputFormat>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::image_engine::ResizeMode {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::image_engine::ResizeMode::None => [0.into_dart()].into_dart(),
+            crate::api::image_engine::ResizeMode::MaxLongEdge { value } => {
+                [1.into_dart(), value.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::image_engine::ResizeMode::ExactSize {
+                width,
+                height,
+                keep_aspect_ratio,
+            } => [
+                2.into_dart(),
+                width.into_into_dart().into_dart(),
+                height.into_into_dart().into_dart(),
+                keep_aspect_ratio.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::image_engine::ResizeMode::ScalePercentage { percentage } => {
+                [3.into_dart(), percentage.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::image_engine::ResizeMode
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::image_engine::ResizeMode>
+    for crate::api::image_engine::ResizeMode
+{
+    fn into_into_dart(self) -> crate::api::image_engine::ResizeMode {
+        self
+    }
+}
 
 impl SseEncode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<u8>>::sse_encode(self.into_bytes(), serializer);
+    }
+}
+
+impl SseEncode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u8(self as _).unwrap();
     }
 }
 
@@ -395,7 +472,7 @@ impl SseEncode for crate::api::image_engine::CompressionRequest {
         <String>::sse_encode(self.output_path, serializer);
         <u8>::sse_encode(self.quality, serializer);
         <u8>::sse_encode(self.png_level, serializer);
-        <Option<u32>>::sse_encode(self.max_long_edge, serializer);
+        <crate::api::image_engine::ResizeMode>::sse_encode(self.resize_mode, serializer);
         <crate::api::image_engine::OutputFormat>::sse_encode(self.output_format, serializer);
     }
 }
@@ -406,6 +483,13 @@ impl SseEncode for crate::api::image_engine::CompressionResponse {
         <String>::sse_encode(self.output_path, serializer);
         <u64>::sse_encode(self.original_bytes, serializer);
         <u64>::sse_encode(self.compressed_bytes, serializer);
+    }
+}
+
+impl SseEncode for f32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_f32::<NativeEndian>(self).unwrap();
     }
 }
 
@@ -456,16 +540,6 @@ impl SseEncode for Option<crate::api::image_engine::CompressionResponse> {
     }
 }
 
-impl SseEncode for Option<u32> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <u32>::sse_encode(value, serializer);
-        }
-    }
-}
-
 impl SseEncode for crate::api::image_engine::OutputFormat {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -479,6 +553,38 @@ impl SseEncode for crate::api::image_engine::OutputFormat {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::image_engine::ResizeMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::image_engine::ResizeMode::None => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::image_engine::ResizeMode::MaxLongEdge { value } => {
+                <i32>::sse_encode(1, serializer);
+                <u32>::sse_encode(value, serializer);
+            }
+            crate::api::image_engine::ResizeMode::ExactSize {
+                width,
+                height,
+                keep_aspect_ratio,
+            } => {
+                <i32>::sse_encode(2, serializer);
+                <u32>::sse_encode(width, serializer);
+                <u32>::sse_encode(height, serializer);
+                <bool>::sse_encode(keep_aspect_ratio, serializer);
+            }
+            crate::api::image_engine::ResizeMode::ScalePercentage { percentage } => {
+                <i32>::sse_encode(3, serializer);
+                <f32>::sse_encode(percentage, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -506,13 +612,6 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
-}
-
-impl SseEncode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_u8(self as _).unwrap();
-    }
 }
 
 #[cfg(not(target_family = "wasm"))]

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../../domain/entities/compression_preset.dart';
 import '../controllers/image_compression_controller.dart';
+import 'resize_settings_widget.dart';
 
 class CompressionSettingsCard extends StatelessWidget {
   const CompressionSettingsCard({required this.controller, super.key});
@@ -52,11 +53,8 @@ class CompressionSettingsCard extends StatelessWidget {
             label: '${preset.quality}',
             onChanged: controller.updateQuality,
           ),
-          if (preset.maxLongEdge != null)
-            Text(
-              'Long edge cap: ${preset.maxLongEdge}px',
-              style: theme.textTheme.bodySmall,
-            ),
+          const SizedBox(height: 20),
+          ResizeSettingsWidget(controller: controller),
         ],
       ),
     );

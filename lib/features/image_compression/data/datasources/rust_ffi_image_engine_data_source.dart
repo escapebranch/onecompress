@@ -8,6 +8,7 @@ import '../../domain/entities/compression_preset.dart';
 import '../../domain/entities/selected_image.dart';
 import 'image_engine_data_source.dart';
 import 'native_image_engine_bridge.dart';
+import '../../../../src/rust/api/image_engine.dart' as frb;
 
 class RustFfiImageEngineDataSource implements ImageEngineDataSource {
   RustFfiImageEngineDataSource({required this.fallbackDataSource});
@@ -50,7 +51,18 @@ class RustFfiImageEngineDataSource implements ImageEngineDataSource {
         outputPath: outputPath,
         quality: preset.quality,
         pngLevel: preset.pngLevel,
-        maxLongEdge: preset.maxLongEdge,
+        resizeMode: preset.resizeMode.when(
+          none: () => const frb.ResizeMode.none(),
+          maxLongEdge: (value) => frb.ResizeMode.maxLongEdge(value: value),
+          exactSize: (width, height, keepAspectRatio) => frb.ResizeMode.exactSize(
+            width: width,
+            height: height,
+            keepAspectRatio: keepAspectRatio,
+          ),
+          scalePercentage: (percentage) => frb.ResizeMode.scalePercentage(
+            percentage: percentage,
+          ),
+        ),
         outputFormat: image.format == SupportedImageFormat.png ? 'png' : 'jpeg',
       );
 

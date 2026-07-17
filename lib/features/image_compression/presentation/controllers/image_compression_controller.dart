@@ -62,6 +62,16 @@ class ImageCompressionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateResizeMode(ImageResizeMode mode) {
+    _preset = _preset.copyWith(
+      id: 'custom',
+      label: 'Custom',
+      description: 'Fine-tuned for this batch.',
+      resizeMode: mode,
+    );
+    notifyListeners();
+  }
+
   Future<void> pickImages() async {
     _setError(null);
 

@@ -172,6 +172,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
   CompressionRequest dco_decode_box_autoadd_compression_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_compression_request(raw);
@@ -181,12 +187,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CompressionResponse dco_decode_box_autoadd_compression_response(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_compression_response(raw);
-  }
-
-  @protected
-  int dco_decode_box_autoadd_u_32(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as int;
   }
 
   @protected
@@ -200,7 +200,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       outputPath: dco_decode_String(arr[1]),
       quality: dco_decode_u_8(arr[2]),
       pngLevel: dco_decode_u_8(arr[3]),
-      maxLongEdge: dco_decode_opt_box_autoadd_u_32(arr[4]),
+      resizeMode: dco_decode_resize_mode(arr[4]),
       outputFormat: dco_decode_output_format(arr[5]),
     );
   }
@@ -216,6 +216,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       originalBytes: dco_decode_CastedPrimitive_u_64(arr[1]),
       compressedBytes: dco_decode_CastedPrimitive_u_64(arr[2]),
     );
+  }
+
+  @protected
+  double dco_decode_f_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
   }
 
   @protected
@@ -256,15 +262,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
-  }
-
-  @protected
   OutputFormat dco_decode_output_format(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return OutputFormat.values[raw as int];
+  }
+
+  @protected
+  ResizeMode dco_decode_resize_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return ResizeMode_None();
+      case 1:
+        return ResizeMode_MaxLongEdge(value: dco_decode_u_32(raw[1]));
+      case 2:
+        return ResizeMode_ExactSize(
+          width: dco_decode_u_32(raw[1]),
+          height: dco_decode_u_32(raw[2]),
+          keepAspectRatio: dco_decode_bool(raw[3]),
+        );
+      case 3:
+        return ResizeMode_ScalePercentage(percentage: dco_decode_f_32(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -306,6 +327,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
   CompressionRequest sse_decode_box_autoadd_compression_request(
     SseDeserializer deserializer,
   ) {
@@ -322,12 +349,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_u_32(deserializer));
-  }
-
-  @protected
   CompressionRequest sse_decode_compression_request(
     SseDeserializer deserializer,
   ) {
@@ -336,14 +357,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_outputPath = sse_decode_String(deserializer);
     var var_quality = sse_decode_u_8(deserializer);
     var var_pngLevel = sse_decode_u_8(deserializer);
-    var var_maxLongEdge = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_resizeMode = sse_decode_resize_mode(deserializer);
     var var_outputFormat = sse_decode_output_format(deserializer);
     return CompressionRequest(
       inputPath: var_inputPath,
       outputPath: var_outputPath,
       quality: var_quality,
       pngLevel: var_pngLevel,
-      maxLongEdge: var_maxLongEdge,
+      resizeMode: var_resizeMode,
       outputFormat: var_outputFormat,
     );
   }
@@ -361,6 +382,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       originalBytes: var_originalBytes,
       compressedBytes: var_compressedBytes,
     );
+  }
+
+  @protected
+  double sse_decode_f_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat32();
   }
 
   @protected
@@ -419,21 +446,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_u_32(deserializer));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
   OutputFormat sse_decode_output_format(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return OutputFormat.values[inner];
+  }
+
+  @protected
+  ResizeMode sse_decode_resize_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return ResizeMode_None();
+      case 1:
+        var var_value = sse_decode_u_32(deserializer);
+        return ResizeMode_MaxLongEdge(value: var_value);
+      case 2:
+        var var_width = sse_decode_u_32(deserializer);
+        var var_height = sse_decode_u_32(deserializer);
+        var var_keepAspectRatio = sse_decode_bool(deserializer);
+        return ResizeMode_ExactSize(
+          width: var_width,
+          height: var_height,
+          keepAspectRatio: var_keepAspectRatio,
+        );
+      case 3:
+        var var_percentage = sse_decode_f_32(deserializer);
+        return ResizeMode_ScalePercentage(percentage: var_percentage);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -460,12 +504,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
-  }
-
-  @protected
   void sse_encode_CastedPrimitive_u_64(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(sseEncodeCastedPrimitiveU64(self), serializer);
@@ -475,6 +513,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
   }
 
   @protected
@@ -496,12 +540,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_32(self, serializer);
-  }
-
-  @protected
   void sse_encode_compression_request(
     CompressionRequest self,
     SseSerializer serializer,
@@ -511,7 +549,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.outputPath, serializer);
     sse_encode_u_8(self.quality, serializer);
     sse_encode_u_8(self.pngLevel, serializer);
-    sse_encode_opt_box_autoadd_u_32(self.maxLongEdge, serializer);
+    sse_encode_resize_mode(self.resizeMode, serializer);
     sse_encode_output_format(self.outputFormat, serializer);
   }
 
@@ -524,6 +562,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.outputPath, serializer);
     sse_encode_CastedPrimitive_u_64(self.originalBytes, serializer);
     sse_encode_CastedPrimitive_u_64(self.compressedBytes, serializer);
+  }
+
+  @protected
+  void sse_encode_f_32(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat32(self);
   }
 
   @protected
@@ -580,19 +624,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_u_32(self, serializer);
-    }
-  }
-
-  @protected
   void sse_encode_output_format(OutputFormat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_resize_mode(ResizeMode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case ResizeMode_None():
+        sse_encode_i_32(0, serializer);
+      case ResizeMode_MaxLongEdge(value: final value):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_32(value, serializer);
+      case ResizeMode_ExactSize(
+        width: final width,
+        height: final height,
+        keepAspectRatio: final keepAspectRatio,
+      ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_u_32(width, serializer);
+        sse_encode_u_32(height, serializer);
+        sse_encode_bool(keepAspectRatio, serializer);
+      case ResizeMode_ScalePercentage(percentage: final percentage):
+        sse_encode_i_32(3, serializer);
+        sse_encode_f_32(percentage, serializer);
+    }
   }
 
   @protected
@@ -616,11 +674,5 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
   }
 }

@@ -1,3 +1,5 @@
+import '../../../../src/rust/api/image_engine.dart' as frb;
+
 class NativeImageEngineBridge {
   const NativeImageEngineBridge._();
 
@@ -11,7 +13,7 @@ class NativeImageEngineBridge {
     required String outputPath,
     required int quality,
     required int pngLevel,
-    required int? maxLongEdge,
+    required frb.ResizeMode resizeMode,
     required String outputFormat,
   }) {
     throw UnsupportedError(

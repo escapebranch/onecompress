@@ -1,3 +1,19 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'compression_preset.freezed.dart';
+
+@freezed
+sealed class ImageResizeMode with _$ImageResizeMode {
+  const factory ImageResizeMode.none() = _None;
+  const factory ImageResizeMode.maxLongEdge(int value) = _MaxLongEdge;
+  const factory ImageResizeMode.exactSize({
+    required int width,
+    required int height,
+    @Default(true) bool keepAspectRatio,
+  }) = _ExactSize;
+  const factory ImageResizeMode.scalePercentage(double percentage) = _ScalePercentage;
+}
+
 class CompressionPreset {
   const CompressionPreset({
     required this.id,
@@ -5,7 +21,7 @@ class CompressionPreset {
     required this.description,
     required this.quality,
     required this.pngLevel,
-    this.maxLongEdge,
+    this.resizeMode = const ImageResizeMode.none(),
   });
 
   final String id;
@@ -13,7 +29,7 @@ class CompressionPreset {
   final String description;
   final int quality;
   final int pngLevel;
-  final int? maxLongEdge;
+  final ImageResizeMode resizeMode;
 
   static const light = CompressionPreset(
     id: 'light',
@@ -21,7 +37,7 @@ class CompressionPreset {
     description: 'Keeps more detail with modest size savings.',
     quality: 88,
     pngLevel: 4,
-    maxLongEdge: null,
+    resizeMode: ImageResizeMode.none(),
   );
 
   static const balanced = CompressionPreset(
@@ -30,7 +46,7 @@ class CompressionPreset {
     description: 'Best default for everyday sharing and storage.',
     quality: 76,
     pngLevel: 6,
-    maxLongEdge: 2560,
+    resizeMode: ImageResizeMode.maxLongEdge(2560),
   );
 
   static const aggressive = CompressionPreset(
@@ -39,7 +55,7 @@ class CompressionPreset {
     description: 'Smallest files for bulk cleanup and uploads.',
     quality: 62,
     pngLevel: 8,
-    maxLongEdge: 1920,
+    resizeMode: ImageResizeMode.maxLongEdge(1920),
   );
 
   static const defaults = [light, balanced, aggressive];
@@ -50,7 +66,7 @@ class CompressionPreset {
     String? description,
     int? quality,
     int? pngLevel,
-    int? maxLongEdge,
+    ImageResizeMode? resizeMode,
   }) {
     return CompressionPreset(
       id: id ?? this.id,
@@ -58,7 +74,7 @@ class CompressionPreset {
       description: description ?? this.description,
       quality: quality ?? this.quality,
       pngLevel: pngLevel ?? this.pngLevel,
-      maxLongEdge: maxLongEdge ?? this.maxLongEdge,
+      resizeMode: resizeMode ?? this.resizeMode,
     );
   }
 }

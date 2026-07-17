@@ -44,7 +44,7 @@ class NativeImageEngineBridge {
     required String outputPath,
     required int quality,
     required int pngLevel,
-    required int? maxLongEdge,
+    required frb.ResizeMode resizeMode,
     required String outputFormat,
   }) async {
     await ensureInitialized();
@@ -58,7 +58,7 @@ class NativeImageEngineBridge {
       outputPath: outputPath,
       quality: quality,
       pngLevel: pngLevel,
-      maxLongEdge: maxLongEdge,
+      resizeMode: resizeMode,
       outputFormat: frbFormat,
     );
 

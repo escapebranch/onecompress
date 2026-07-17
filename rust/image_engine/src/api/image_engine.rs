@@ -9,12 +9,20 @@ pub enum OutputFormat {
 }
 
 #[derive(Debug, Clone)]
+pub enum ResizeMode {
+    None,
+    MaxLongEdge { value: u32 },
+    ExactSize { width: u32, height: u32, keep_aspect_ratio: bool },
+    ScalePercentage { percentage: f32 },
+}
+
+#[derive(Debug, Clone)]
 pub struct CompressionRequest {
     pub input_path: String,
     pub output_path: String,
     pub quality: u8,
     pub png_level: u8,
-    pub max_long_edge: Option<u32>,
+    pub resize_mode: ResizeMode,
     pub output_format: OutputFormat,
 }
 
@@ -31,7 +39,16 @@ pub fn compress_image(request: CompressionRequest) -> Result<CompressionResponse
         output_path: PathBuf::from(request.output_path),
         quality: quality_clamp(request.quality),
         png_level: request.png_level,
-        max_long_edge: request.max_long_edge,
+        resize_mode: match request.resize_mode {
+            ResizeMode::None => crate::InternalResizeMode::None,
+            ResizeMode::MaxLongEdge { value } => crate::InternalResizeMode::MaxLongEdge { value },
+            ResizeMode::ExactSize { width, height, keep_aspect_ratio } => {
+                crate::InternalResizeMode::ExactSize { width, height, keep_aspect_ratio }
+            },
+            ResizeMode::ScalePercentage { percentage } => {
+                crate::InternalResizeMode::ScalePercentage { percentage }
+            },
+        },
         output_format: match request.output_format {
             OutputFormat::Jpeg => crate::InternalOutputFormat::Jpeg,
             OutputFormat::Png => crate::InternalOutputFormat::Png,

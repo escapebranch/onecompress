@@ -30,7 +30,7 @@ class RasterImageEngineDataSource implements ImageEngineDataSource {
       throw AppFailure('Unable to decode ${image.fileName}.');
     }
 
-    final transformed = _resizeIfNeeded(decoded, preset.maxLongEdge);
+    final transformed = _resizeIfNeeded(decoded, preset.resizeMode);
     final encoded = switch (image.format) {
       SupportedImageFormat.jpeg => img.encodeJpg(
         transformed,
@@ -69,19 +69,34 @@ class RasterImageEngineDataSource implements ImageEngineDataSource {
     );
   }
 
-  img.Image _resizeIfNeeded(img.Image image, int? maxLongEdge) {
-    if (maxLongEdge == null) {
-      return image;
-    }
+  img.Image _resizeIfNeeded(img.Image image, ImageResizeMode mode) {
+    return mode.when(
+      none: () => image,
+      maxLongEdge: (maxLongEdge) {
+        final longEdge = math.max(image.width, image.height);
+        if (longEdge <= maxLongEdge) {
+          return image;
+        }
 
-    final longEdge = math.max(image.width, image.height);
-    if (longEdge <= maxLongEdge) {
-      return image;
-    }
-
-    final scale = maxLongEdge / longEdge;
-    final width = (image.width * scale).round();
-    final height = (image.height * scale).round();
-    return img.copyResize(image, width: width, height: height);
+        final scale = maxLongEdge / longEdge;
+        final width = (image.width * scale).round();
+        final height = (image.height * scale).round();
+        return img.copyResize(image, width: width, height: height);
+      },
+      exactSize: (width, height, keepAspectRatio) {
+        return img.copyResize(
+          image,
+          width: width,
+          height: height,
+          maintainAspect: keepAspectRatio,
+        );
+      },
+      scalePercentage: (percentage) {
+        final scale = percentage / 100.0;
+        final width = math.max(1, (image.width * scale).round());
+        final height = math.max(1, (image.height * scale).round());
+        return img.copyResize(image, width: width, height: height);
+      },
+    );
   }
 }

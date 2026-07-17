@@ -5,9 +5,11 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'image_engine.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `quality_clamp`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<CompressionResponse> compressImage({
   required CompressionRequest request,
@@ -24,7 +26,7 @@ class CompressionRequest {
   final String outputPath;
   final int quality;
   final int pngLevel;
-  final int? maxLongEdge;
+  final ResizeMode resizeMode;
   final OutputFormat outputFormat;
 
   const CompressionRequest({
@@ -32,7 +34,7 @@ class CompressionRequest {
     required this.outputPath,
     required this.quality,
     required this.pngLevel,
-    this.maxLongEdge,
+    required this.resizeMode,
     required this.outputFormat,
   });
 
@@ -42,7 +44,7 @@ class CompressionRequest {
       outputPath.hashCode ^
       quality.hashCode ^
       pngLevel.hashCode ^
-      maxLongEdge.hashCode ^
+      resizeMode.hashCode ^
       outputFormat.hashCode;
 
   @override
@@ -54,7 +56,7 @@ class CompressionRequest {
           outputPath == other.outputPath &&
           quality == other.quality &&
           pngLevel == other.pngLevel &&
-          maxLongEdge == other.maxLongEdge &&
+          resizeMode == other.resizeMode &&
           outputFormat == other.outputFormat;
 }
 
@@ -84,3 +86,19 @@ class CompressionResponse {
 }
 
 enum OutputFormat { jpeg, png }
+
+@freezed
+sealed class ResizeMode with _$ResizeMode {
+  const ResizeMode._();
+
+  const factory ResizeMode.none() = ResizeMode_None;
+  const factory ResizeMode.maxLongEdge({required int value}) =
+      ResizeMode_MaxLongEdge;
+  const factory ResizeMode.exactSize({
+    required int width,
+    required int height,
+    required bool keepAspectRatio,
+  }) = ResizeMode_ExactSize;
+  const factory ResizeMode.scalePercentage({required double percentage}) =
+      ResizeMode_ScalePercentage;
+}

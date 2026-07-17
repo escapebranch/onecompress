@@ -16,12 +16,20 @@ pub enum InternalOutputFormat {
 }
 
 #[derive(Debug, Clone)]
+pub enum InternalResizeMode {
+    None,
+    MaxLongEdge { value: u32 },
+    ExactSize { width: u32, height: u32, keep_aspect_ratio: bool },
+    ScalePercentage { percentage: f32 },
+}
+
+#[derive(Debug, Clone)]
 pub struct InternalCompressionRequest {
     pub input_path: PathBuf,
     pub output_path: PathBuf,
     pub quality: u8,
     pub png_level: u8,
-    pub max_long_edge: Option<u32>,
+    pub resize_mode: InternalResizeMode,
     pub output_format: InternalOutputFormat,
 }
 
@@ -55,9 +63,7 @@ pub fn compress_image_internal(
     let format = detect_format(&request.input_path)?;
     let mut image = ImageReader::with_format(buffered_reader, format).decode()?;
 
-    if let Some(max_long_edge) = request.max_long_edge {
-        image = resize_if_needed(image, max_long_edge);
-    }
+    image = apply_resize(image, &request.resize_mode);
 
     if let Some(parent) = request.output_path.parent() {
         fs::create_dir_all(parent)?;
@@ -95,23 +101,58 @@ fn detect_format(path: &Path) -> Result<ImageFormat, ImageEngineError> {
     }
 }
 
-fn resize_if_needed(image: DynamicImage, max_long_edge: u32) -> DynamicImage {
+fn apply_resize(image: DynamicImage, mode: &InternalResizeMode) -> DynamicImage {
     let width = image.width();
     let height = image.height();
-    let long_edge = width.max(height);
 
-    if long_edge <= max_long_edge {
-        return image;
+    match mode {
+        InternalResizeMode::None => image,
+        InternalResizeMode::MaxLongEdge { value } => {
+            let max_long_edge = *value;
+            let long_edge = width.max(height);
+            if long_edge <= max_long_edge {
+                return image;
+            }
+            let scale = max_long_edge as f32 / long_edge as f32;
+            let next_width = (width as f32 * scale).round() as u32;
+            let next_height = (height as f32 * scale).round() as u32;
+            image.resize(
+                next_width,
+                next_height,
+                image::imageops::FilterType::Triangle,
+            )
+        }
+        InternalResizeMode::ExactSize { width: target_width, height: target_height, keep_aspect_ratio } => {
+            if *keep_aspect_ratio {
+                image.resize(
+                    *target_width,
+                    *target_height,
+                    image::imageops::FilterType::Triangle,
+                )
+            } else {
+                image.resize_exact(
+                    *target_width,
+                    *target_height,
+                    image::imageops::FilterType::Triangle,
+                )
+            }
+        }
+        InternalResizeMode::ScalePercentage { percentage } => {
+            let scale = percentage / 100.0;
+            let next_width = (width as f32 * scale).round() as u32;
+            let next_height = (height as f32 * scale).round() as u32;
+            
+            // Prevent 0 width/height
+            let next_width = next_width.max(1);
+            let next_height = next_height.max(1);
+            
+            image.resize(
+                next_width,
+                next_height,
+                image::imageops::FilterType::Triangle,
+            )
+        }
     }
-
-    let scale = max_long_edge as f32 / long_edge as f32;
-    let next_width = (width as f32 * scale).round() as u32;
-    let next_height = (height as f32 * scale).round() as u32;
-    image.resize(
-        next_width,
-        next_height,
-        image::imageops::FilterType::Triangle,
-    )
 }
 
 fn encode_jpeg<W: Write>(
