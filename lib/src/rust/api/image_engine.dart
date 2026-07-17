@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'image_engine.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `quality_clamp`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<CompressionResponse> compressImage({
   required CompressionRequest request,
@@ -21,7 +21,14 @@ Future<List<CompressionResponse?>> compressImagesBatch({
   requests: requests,
 );
 
+Stream<CompressionTaskProgress> compressImagesStream({
+  required List<CompressionRequest> requests,
+}) => RustLib.instance.api.crateApiImageEngineCompressImagesStream(
+  requests: requests,
+);
+
 class CompressionRequest {
+  final String id;
   final String inputPath;
   final String outputPath;
   final int quality;
@@ -30,6 +37,7 @@ class CompressionRequest {
   final OutputFormat outputFormat;
 
   const CompressionRequest({
+    required this.id,
     required this.inputPath,
     required this.outputPath,
     required this.quality,
@@ -40,6 +48,7 @@ class CompressionRequest {
 
   @override
   int get hashCode =>
+      id.hashCode ^
       inputPath.hashCode ^
       outputPath.hashCode ^
       quality.hashCode ^
@@ -52,6 +61,7 @@ class CompressionRequest {
       identical(this, other) ||
       other is CompressionRequest &&
           runtimeType == other.runtimeType &&
+          id == other.id &&
           inputPath == other.inputPath &&
           outputPath == other.outputPath &&
           quality == other.quality &&
@@ -61,31 +71,77 @@ class CompressionRequest {
 }
 
 class CompressionResponse {
+  final String id;
   final String outputPath;
   final int originalBytes;
   final int compressedBytes;
+  final int width;
+  final int height;
+  final String format;
 
   const CompressionResponse({
+    required this.id,
     required this.outputPath,
     required this.originalBytes,
     required this.compressedBytes,
+    required this.width,
+    required this.height,
+    required this.format,
   });
 
   @override
   int get hashCode =>
-      outputPath.hashCode ^ originalBytes.hashCode ^ compressedBytes.hashCode;
+      id.hashCode ^
+      outputPath.hashCode ^
+      originalBytes.hashCode ^
+      compressedBytes.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      format.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is CompressionResponse &&
           runtimeType == other.runtimeType &&
+          id == other.id &&
           outputPath == other.outputPath &&
           originalBytes == other.originalBytes &&
-          compressedBytes == other.compressedBytes;
+          compressedBytes == other.compressedBytes &&
+          width == other.width &&
+          height == other.height &&
+          format == other.format;
 }
 
-enum OutputFormat { jpeg, png }
+class CompressionTaskProgress {
+  final String id;
+  final bool success;
+  final CompressionResponse? response;
+  final String? error;
+
+  const CompressionTaskProgress({
+    required this.id,
+    required this.success,
+    this.response,
+    this.error,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ success.hashCode ^ response.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompressionTaskProgress &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          success == other.success &&
+          response == other.response &&
+          error == other.error;
+}
+
+enum OutputFormat { jpeg, png, webp, auto }
 
 @freezed
 sealed class ResizeMode with _$ResizeMode {

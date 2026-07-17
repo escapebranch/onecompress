@@ -22,4 +22,6 @@ class CompressedImage {
 
     return 1 - (compressedBytes / originalBytes);
   }
+
+  double get savedPercentage => (savingsRatio * 100).clamp(0, 100);
 }

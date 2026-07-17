@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
-import '../../../../core/errors/app_failure.dart';
 import '../../domain/entities/compressed_image.dart';
 import '../../domain/entities/compression_preset.dart';
 import '../../domain/entities/compression_task_update.dart';
@@ -38,47 +37,11 @@ class ImageCompressionRepositoryImpl implements ImageCompressionRepository {
   Stream<CompressionTaskUpdate> compressImages({
     required List<SelectedImage> images,
     required CompressionPreset preset,
-  }) async* {
-    var completed = 0;
-    final total = images.length;
-
-    for (final image in images) {
-      try {
-        final result = await imageEngineDataSource.compressImage(
-          image: image,
-          preset: preset,
-        );
-        completed++;
-        yield CompressionTaskUpdate(
-          total: total,
-          completed: completed,
-          currentImageName: image.fileName,
-          result: result,
-          source: image,
-        );
-      } on AppFailure catch (failure) {
-        completed++;
-        yield CompressionTaskUpdate(
-          total: total,
-          completed: completed,
-          currentImageName: image.fileName,
-          failure: failure,
-          source: image,
-        );
-      } catch (error) {
-        completed++;
-        yield CompressionTaskUpdate(
-          total: total,
-          completed: completed,
-          currentImageName: image.fileName,
-          source: image,
-          failure: AppFailure(
-            'Compression failed for ${image.fileName}.',
-            details: error.toString(),
-          ),
-        );
-      }
-    }
+  }) {
+    return imageEngineDataSource.compressBatchStream(
+      images: images,
+      preset: preset,
+    );
   }
 
   @override

@@ -2,6 +2,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'compression_preset.freezed.dart';
 
+enum TargetFormat { auto, jpeg, png, webp }
+
 @freezed
 sealed class ImageResizeMode with _$ImageResizeMode {
   const factory ImageResizeMode.none() = _None;
@@ -21,6 +23,7 @@ class CompressionPreset {
     required this.description,
     required this.quality,
     required this.pngLevel,
+    this.targetFormat = TargetFormat.auto,
     this.resizeMode = const ImageResizeMode.none(),
   });
 
@@ -29,6 +32,7 @@ class CompressionPreset {
   final String description;
   final int quality;
   final int pngLevel;
+  final TargetFormat targetFormat;
   final ImageResizeMode resizeMode;
 
   static const light = CompressionPreset(
@@ -37,6 +41,7 @@ class CompressionPreset {
     description: 'Keeps more detail with modest size savings.',
     quality: 88,
     pngLevel: 4,
+    targetFormat: TargetFormat.auto,
     resizeMode: ImageResizeMode.none(),
   );
 
@@ -46,6 +51,7 @@ class CompressionPreset {
     description: 'Best default for everyday sharing and storage.',
     quality: 76,
     pngLevel: 6,
+    targetFormat: TargetFormat.auto,
     resizeMode: ImageResizeMode.maxLongEdge(2560),
   );
 
@@ -55,6 +61,7 @@ class CompressionPreset {
     description: 'Smallest files for bulk cleanup and uploads.',
     quality: 62,
     pngLevel: 8,
+    targetFormat: TargetFormat.auto,
     resizeMode: ImageResizeMode.maxLongEdge(1920),
   );
 
@@ -66,6 +73,7 @@ class CompressionPreset {
     String? description,
     int? quality,
     int? pngLevel,
+    TargetFormat? targetFormat,
     ImageResizeMode? resizeMode,
   }) {
     return CompressionPreset(
@@ -74,6 +82,7 @@ class CompressionPreset {
       description: description ?? this.description,
       quality: quality ?? this.quality,
       pngLevel: pngLevel ?? this.pngLevel,
+      targetFormat: targetFormat ?? this.targetFormat,
       resizeMode: resizeMode ?? this.resizeMode,
     );
   }

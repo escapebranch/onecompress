@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/errors/app_failure.dart';
@@ -34,6 +36,11 @@ class ImageCompressionController extends ChangeNotifier {
   String? _statusMessage;
   String? _errorMessage;
 
+  DateTime? _compressionStartTime;
+  int _elapsedMilliseconds = 0;
+  double _processingSpeedMBps = 0.0;
+  StreamSubscription? _compressionSubscription;
+
   List<SelectedImage> get selectedImages => _selectedImages;
   List<CompressedImage> get compressedImages => _compressedImages;
   CompressionPreset get preset => _preset;
@@ -41,10 +48,24 @@ class ImageCompressionController extends ChangeNotifier {
   double get progress => _progress;
   String? get statusMessage => _statusMessage;
   String? get errorMessage => _errorMessage;
+  int get elapsedMilliseconds => _elapsedMilliseconds;
+  double get processingSpeedMBps => _processingSpeedMBps;
+
   int get totalOriginalBytes =>
       _selectedImages.fold(0, (sum, image) => sum + image.originalBytes);
   int get totalCompressedBytes =>
       _compressedImages.fold(0, (sum, image) => sum + image.compressedBytes);
+
+  double get savedPercentage {
+    if (totalOriginalBytes == 0 || _compressedImages.isEmpty) return 0;
+    final processedOriginalBytes = _compressedImages.fold(
+      0,
+      (sum, item) => sum + item.originalBytes,
+    );
+    if (processedOriginalBytes == 0) return 0;
+    final saved = processedOriginalBytes - totalCompressedBytes;
+    return ((saved / processedOriginalBytes) * 100).clamp(0, 100);
+  }
 
   void selectPreset(CompressionPreset preset) {
     _preset = preset;
@@ -55,7 +76,7 @@ class ImageCompressionController extends ChangeNotifier {
     _preset = _preset.copyWith(
       id: 'custom',
       label: 'Custom',
-      description: 'Fine-tuned for this batch.',
+      description: 'Fine-tuned custom parameters.',
       quality: quality.round(),
       pngLevel: _mapPngLevel(quality.round()),
     );
@@ -66,9 +87,40 @@ class ImageCompressionController extends ChangeNotifier {
     _preset = _preset.copyWith(
       id: 'custom',
       label: 'Custom',
-      description: 'Fine-tuned for this batch.',
+      description: 'Fine-tuned custom parameters.',
       resizeMode: mode,
     );
+    notifyListeners();
+  }
+
+  void updateTargetFormat(TargetFormat format) {
+    _preset = _preset.copyWith(
+      id: 'custom',
+      label: 'Custom',
+      description: 'Fine-tuned custom parameters.',
+      targetFormat: format,
+    );
+    notifyListeners();
+  }
+
+  void removeSelectedImage(SelectedImage image) {
+    _selectedImages = _selectedImages.where((i) => i.path != image.path).toList();
+    _compressedImages = _compressedImages.where((i) => i.source.path != image.path).toList();
+    _statusMessage = _selectedImages.isEmpty
+        ? 'No images selected.'
+        : '${_selectedImages.length} image${_selectedImages.length == 1 ? '' : 's'} ready.';
+    notifyListeners();
+  }
+
+  void clearAll() {
+    cancelCompression();
+    _selectedImages = const [];
+    _compressedImages = const [];
+    _progress = 0;
+    _statusMessage = null;
+    _errorMessage = null;
+    _processingSpeedMBps = 0;
+    _elapsedMilliseconds = 0;
     notifyListeners();
   }
 
@@ -100,34 +152,77 @@ class ImageCompressionController extends ChangeNotifier {
     _compressedImages = const [];
     _progress = 0;
     _setError(null, notify: false);
-    _statusMessage = 'Preparing compression queue...';
+    _statusMessage = 'Launching multi-threaded parallel engine...';
+    _compressionStartTime = DateTime.now();
+    _elapsedMilliseconds = 0;
+    _processingSpeedMBps = 0;
     notifyListeners();
 
-    await for (final update in compressImagesUseCase(
+    final stream = compressImagesUseCase(
       images: _selectedImages,
       preset: _preset,
-    )) {
-      _progress = update.progress;
-      _statusMessage = update.failure == null
-          ? 'Compressed ${update.currentImageName}'
-          : 'Skipped ${update.currentImageName}: ${update.failure!.message}';
+    );
 
-      if (update.result != null) {
-        _compressedImages = [..._compressedImages, update.result!];
-      }
+    _compressionSubscription = stream.listen(
+      (update) {
+        _progress = update.progress;
+        _statusMessage = update.failure == null
+            ? 'Compressed ${update.currentImageName}'
+            : 'Skipped ${update.currentImageName}: ${update.failure!.message}';
 
-      if (update.failure != null && _errorMessage == null) {
-        _errorMessage = update.failure!.message;
-      }
+        if (update.result != null) {
+          _compressedImages = [..._compressedImages, update.result!];
+        }
 
+        if (update.failure != null && _errorMessage == null) {
+          _errorMessage = update.failure!.message;
+        }
+
+        final now = DateTime.now();
+        if (_compressionStartTime != null) {
+          _elapsedMilliseconds = now.difference(_compressionStartTime!).inMilliseconds;
+          final elapsedSeconds = _elapsedMilliseconds / 1000.0;
+          if (elapsedSeconds > 0.05) {
+            final processedOriginalBytes = _compressedImages.fold(
+              0,
+              (sum, img) => sum + img.originalBytes,
+            );
+            final processedMB = processedOriginalBytes / (1024 * 1024);
+            _processingSpeedMBps = processedMB / elapsedSeconds;
+          }
+        }
+
+        notifyListeners();
+      },
+      onError: (error) {
+        _setError('Engine stream error: $error');
+        _isCompressing = false;
+        notifyListeners();
+      },
+      onDone: () {
+        _isCompressing = false;
+        final now = DateTime.now();
+        if (_compressionStartTime != null) {
+          _elapsedMilliseconds = now.difference(_compressionStartTime!).inMilliseconds;
+        }
+        _statusMessage = _compressedImages.isEmpty
+            ? 'No files were compressed.'
+            : 'Finished in ${_elapsedMilliseconds}ms (${_processingSpeedMBps.toStringAsFixed(1)} MB/s). ${_compressedImages.length} output file${_compressedImages.length == 1 ? '' : 's'} ready.';
+        notifyListeners();
+      },
+    );
+  }
+
+  void cancelCompression() {
+    if (_compressionSubscription != null) {
+      _compressionSubscription!.cancel();
+      _compressionSubscription = null;
+    }
+    if (_isCompressing) {
+      _isCompressing = false;
+      _statusMessage = 'Compression cancelled by user.';
       notifyListeners();
     }
-
-    _isCompressing = false;
-    _statusMessage = _compressedImages.isEmpty
-        ? 'No files were compressed.'
-        : 'Compression finished. ${_compressedImages.length} output file${_compressedImages.length == 1 ? '' : 's'} ready.';
-    notifyListeners();
   }
 
   Future<void> saveCompressedImages() async {
@@ -191,5 +286,11 @@ class ImageCompressionController extends ChangeNotifier {
     if (notify) {
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _compressionSubscription?.cancel();
+    super.dispose();
   }
 }

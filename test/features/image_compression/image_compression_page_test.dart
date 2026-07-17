@@ -32,7 +32,7 @@ void main() {
     );
 
     expect(find.text('OneCompress'), findsOneWidget);
-    expect(find.text('Compression settings'), findsOneWidget);
+    expect(find.text('Compression & Engine Settings'), findsOneWidget);
     expect(find.text('Actions'), findsOneWidget);
     expect(find.text('Select images'), findsOneWidget);
   });

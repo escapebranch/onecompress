@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -156112180;
+  int get rustContentHash => -14425551;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -81,6 +81,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<CompressionResponse?>> crateApiImageEngineCompressImagesBatch({
+    required List<CompressionRequest> requests,
+  });
+
+  Stream<CompressionTaskProgress> crateApiImageEngineCompressImagesStream({
     required List<CompressionRequest> requests,
   });
 }
@@ -157,12 +161,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: ["requests"],
       );
 
+  @override
+  Stream<CompressionTaskProgress> crateApiImageEngineCompressImagesStream({
+    required List<CompressionRequest> requests,
+  }) {
+    final sink = RustStreamSink<CompressionTaskProgress>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_list_compression_request(requests, serializer);
+            sse_encode_StreamSink_compression_task_progress_Sse(
+              sink,
+              serializer,
+            );
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 3,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiImageEngineCompressImagesStreamConstMeta,
+          argValues: [requests, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiImageEngineCompressImagesStreamConstMeta =>
+      const TaskConstMeta(
+        debugName: "compress_images_stream",
+        argNames: ["requests", "sink"],
+      );
+
+  @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnyhowException(raw as String);
+  }
+
   @protected
   int dco_decode_CastedPrimitive_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError(
       'Not implemented in this codec, please use the other one',
     );
+  }
+
+  @protected
+  RustStreamSink<CompressionTaskProgress>
+  dco_decode_StreamSink_compression_task_progress_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
   }
 
   @protected
@@ -193,15 +251,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CompressionRequest dco_decode_compression_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return CompressionRequest(
-      inputPath: dco_decode_String(arr[0]),
-      outputPath: dco_decode_String(arr[1]),
-      quality: dco_decode_u_8(arr[2]),
-      pngLevel: dco_decode_u_8(arr[3]),
-      resizeMode: dco_decode_resize_mode(arr[4]),
-      outputFormat: dco_decode_output_format(arr[5]),
+      id: dco_decode_String(arr[0]),
+      inputPath: dco_decode_String(arr[1]),
+      outputPath: dco_decode_String(arr[2]),
+      quality: dco_decode_u_8(arr[3]),
+      pngLevel: dco_decode_u_8(arr[4]),
+      resizeMode: dco_decode_resize_mode(arr[5]),
+      outputFormat: dco_decode_output_format(arr[6]),
     );
   }
 
@@ -209,12 +268,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CompressionResponse dco_decode_compression_response(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return CompressionResponse(
-      outputPath: dco_decode_String(arr[0]),
-      originalBytes: dco_decode_CastedPrimitive_u_64(arr[1]),
-      compressedBytes: dco_decode_CastedPrimitive_u_64(arr[2]),
+      id: dco_decode_String(arr[0]),
+      outputPath: dco_decode_String(arr[1]),
+      originalBytes: dco_decode_CastedPrimitive_u_64(arr[2]),
+      compressedBytes: dco_decode_CastedPrimitive_u_64(arr[3]),
+      width: dco_decode_u_32(arr[4]),
+      height: dco_decode_u_32(arr[5]),
+      format: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
+  CompressionTaskProgress dco_decode_compression_task_progress(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return CompressionTaskProgress(
+      id: dco_decode_String(arr[0]),
+      success: dco_decode_bool(arr[1]),
+      response: dco_decode_opt_box_autoadd_compression_response(arr[2]),
+      error: dco_decode_opt_String(arr[3]),
     );
   }
 
@@ -249,6 +326,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
   }
 
   @protected
@@ -313,10 +396,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return AnyhowException(inner);
+  }
+
+  @protected
   int sse_decode_CastedPrimitive_u_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_u_64(deserializer);
     return inner.toInt();
+  }
+
+  @protected
+  RustStreamSink<CompressionTaskProgress>
+  sse_decode_StreamSink_compression_task_progress_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
   }
 
   @protected
@@ -353,6 +452,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
     var var_inputPath = sse_decode_String(deserializer);
     var var_outputPath = sse_decode_String(deserializer);
     var var_quality = sse_decode_u_8(deserializer);
@@ -360,6 +460,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_resizeMode = sse_decode_resize_mode(deserializer);
     var var_outputFormat = sse_decode_output_format(deserializer);
     return CompressionRequest(
+      id: var_id,
       inputPath: var_inputPath,
       outputPath: var_outputPath,
       quality: var_quality,
@@ -374,13 +475,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
     var var_outputPath = sse_decode_String(deserializer);
     var var_originalBytes = sse_decode_CastedPrimitive_u_64(deserializer);
     var var_compressedBytes = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_format = sse_decode_String(deserializer);
     return CompressionResponse(
+      id: var_id,
       outputPath: var_outputPath,
       originalBytes: var_originalBytes,
       compressedBytes: var_compressedBytes,
+      width: var_width,
+      height: var_height,
+      format: var_format,
+    );
+  }
+
+  @protected
+  CompressionTaskProgress sse_decode_compression_task_progress(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_success = sse_decode_bool(deserializer);
+    var var_response = sse_decode_opt_box_autoadd_compression_response(
+      deserializer,
+    );
+    var var_error = sse_decode_opt_String(deserializer);
+    return CompressionTaskProgress(
+      id: var_id,
+      success: var_success,
+      response: var_response,
+      error: var_error,
     );
   }
 
@@ -430,6 +558,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
   }
 
   @protected
@@ -504,9 +643,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.message, serializer);
+  }
+
+  @protected
   void sse_encode_CastedPrimitive_u_64(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(sseEncodeCastedPrimitiveU64(self), serializer);
+  }
+
+  @protected
+  void sse_encode_StreamSink_compression_task_progress_Sse(
+    RustStreamSink<CompressionTaskProgress> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_compression_task_progress,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
   }
 
   @protected
@@ -545,6 +710,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
     sse_encode_String(self.inputPath, serializer);
     sse_encode_String(self.outputPath, serializer);
     sse_encode_u_8(self.quality, serializer);
@@ -559,9 +725,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
     sse_encode_String(self.outputPath, serializer);
     sse_encode_CastedPrimitive_u_64(self.originalBytes, serializer);
     sse_encode_CastedPrimitive_u_64(self.compressedBytes, serializer);
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_String(self.format, serializer);
+  }
+
+  @protected
+  void sse_encode_compression_task_progress(
+    CompressionTaskProgress self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_bool(self.success, serializer);
+    sse_encode_opt_box_autoadd_compression_response(self.response, serializer);
+    sse_encode_opt_String(self.error, serializer);
   }
 
   @protected
@@ -608,6 +790,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
   }
 
   @protected

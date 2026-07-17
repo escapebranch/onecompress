@@ -19,7 +19,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
   int dco_decode_CastedPrimitive_u_64(dynamic raw);
+
+  @protected
+  RustStreamSink<CompressionTaskProgress>
+  dco_decode_StreamSink_compression_task_progress_Sse(dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -40,6 +47,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CompressionResponse dco_decode_compression_response(dynamic raw);
 
   @protected
+  CompressionTaskProgress dco_decode_compression_task_progress(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
@@ -54,6 +64,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw);
 
   @protected
   CompressionResponse? dco_decode_opt_box_autoadd_compression_response(
@@ -79,7 +92,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_CastedPrimitive_u_64(SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<CompressionTaskProgress>
+  sse_decode_StreamSink_compression_task_progress_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -108,6 +130,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CompressionTaskProgress sse_decode_compression_task_progress(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
@@ -126,6 +153,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
   CompressionResponse? sse_decode_opt_box_autoadd_compression_response(
@@ -151,7 +181,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_CastedPrimitive_u_64(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_StreamSink_compression_task_progress_Sse(
+    RustStreamSink<CompressionTaskProgress> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -184,6 +226,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_compression_task_progress(
+    CompressionTaskProgress self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
@@ -206,6 +254,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     Uint8List self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_compression_response(

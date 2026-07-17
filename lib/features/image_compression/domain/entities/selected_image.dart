@@ -1,4 +1,4 @@
-enum SupportedImageFormat { jpeg, png, unsupported }
+enum SupportedImageFormat { jpeg, png, webp, unsupported }
 
 class SelectedImage {
   const SelectedImage({

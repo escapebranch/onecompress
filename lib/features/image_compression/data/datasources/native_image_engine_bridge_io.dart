@@ -40,48 +40,65 @@ class NativeImageEngineBridge {
   }
 
   Future<NativeCompressionResponse> compress({
+    required String id,
     required String inputPath,
     required String outputPath,
     required int quality,
     required int pngLevel,
     required frb.ResizeMode resizeMode,
-    required String outputFormat,
+    required frb.OutputFormat outputFormat,
   }) async {
     await ensureInitialized();
 
-    final frbFormat = outputFormat == 'png'
-        ? frb.OutputFormat.png
-        : frb.OutputFormat.jpeg;
-
     final request = frb.CompressionRequest(
+      id: id,
       inputPath: inputPath,
       outputPath: outputPath,
       quality: quality,
       pngLevel: pngLevel,
       resizeMode: resizeMode,
-      outputFormat: frbFormat,
+      outputFormat: outputFormat,
     );
 
     final response = await frb.compressImage(request: request);
 
     return NativeCompressionResponse(
+      id: response.id,
       outputPath: response.outputPath,
       originalBytes: response.originalBytes,
       compressedBytes: response.compressedBytes,
+      width: response.width,
+      height: response.height,
+      format: response.format,
     );
+  }
+
+  Stream<frb.CompressionTaskProgress> compressStream({
+    required List<frb.CompressionRequest> requests,
+  }) async* {
+    await ensureInitialized();
+    yield* frb.compressImagesStream(requests: requests);
   }
 }
 
 class NativeCompressionResponse {
   const NativeCompressionResponse({
+    required this.id,
     required this.outputPath,
     required this.originalBytes,
     required this.compressedBytes,
+    required this.width,
+    required this.height,
+    required this.format,
   });
 
+  final String id;
   final String outputPath;
   final int originalBytes;
   final int compressedBytes;
+  final int width;
+  final int height;
+  final String format;
 }
 
 String? _findLibraryPath() {
