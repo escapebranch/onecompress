@@ -1,5 +1,20 @@
 RUST_ENGINE_MANIFEST := rust/image_engine/Cargo.toml
 
+.PHONY: run
+run: debug
+
+.PHONY: debug
+debug:
+	./run.sh
+
+.PHONY: android-rust-debug
+android-rust-debug:
+	PATH="$(HOME)/.cargo/bin:$(PATH)" ./tool/build_rust_android.sh debug
+
+.PHONY: android-rust-release
+android-rust-release:
+	PATH="$(HOME)/.cargo/bin:$(PATH)" ./tool/build_rust_android.sh release
+
 .PHONY: rust-engine-debug
 rust-engine-debug:
 	cargo build --manifest-path $(RUST_ENGINE_MANIFEST)
