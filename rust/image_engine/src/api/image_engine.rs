@@ -1,7 +1,10 @@
 use std::path::PathBuf;
-use rayon::prelude::*;
+use std::sync::OnceLock;
+use rayon::{prelude::*, ThreadPool, ThreadPoolBuilder};
 use crate::frb_generated::StreamSink;
 use crate::compress_image_internal;
+
+// ─── Enums & Public Structs ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy)]
 pub enum OutputFormat {
@@ -30,6 +33,7 @@ pub struct CompressionRequest {
     pub output_format: OutputFormat,
 }
 
+/// NOTE: field order MUST match frb_generated.rs SseDecode/SseEncode exactly.
 #[derive(Debug, Clone)]
 pub struct CompressionResponse {
     pub id: String,
@@ -49,22 +53,50 @@ pub struct CompressionTaskProgress {
     pub error: Option<String>,
 }
 
-pub fn compress_image(request: CompressionRequest) -> Result<CompressionResponse, String> {
-    let req_id = request.id.clone();
-    let internal_request = crate::InternalCompressionRequest {
-        input_path: PathBuf::from(request.input_path),
-        output_path: PathBuf::from(request.output_path),
+// ─── Singleton Compression Thread Pool ────────────────────────────────────────
+// Created once, reused for every compression session.
+// Pinned to (num_cpus - 1) threads to never starve the Flutter UI thread.
+// On a 4-core phone: 3 workers. On a 2-core: 1 worker. On 8-core: 7 workers.
+
+static COMPRESSION_POOL: OnceLock<ThreadPool> = OnceLock::new();
+
+fn get_compression_pool() -> &'static ThreadPool {
+    COMPRESSION_POOL.get_or_init(|| {
+        let num_threads = (num_cpus::get().saturating_sub(1)).max(1);
+        ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            // 8 MB stack per worker: large image decode is stack-heavy
+            .stack_size(8 * 1024 * 1024)
+            .thread_name(|i| format!("onecompress-{i}"))
+            .build()
+            .unwrap_or_else(|_| {
+                // Absolute fallback: let rayon use its defaults
+                ThreadPoolBuilder::new().build().expect("Failed to build fallback pool")
+            })
+    })
+}
+
+// ─── Internal Request Builder ─────────────────────────────────────────────────
+
+fn to_internal_request(request: &CompressionRequest) -> crate::InternalCompressionRequest {
+    crate::InternalCompressionRequest {
+        input_path: PathBuf::from(&request.input_path),
+        output_path: PathBuf::from(&request.output_path),
         quality: quality_clamp(request.quality),
-        png_level: request.png_level,
-        resize_mode: match request.resize_mode {
+        png_level: request.png_level.min(9),
+        resize_mode: match &request.resize_mode {
             ResizeMode::None => crate::InternalResizeMode::None,
-            ResizeMode::MaxLongEdge { value } => crate::InternalResizeMode::MaxLongEdge { value },
+            ResizeMode::MaxLongEdge { value } => crate::InternalResizeMode::MaxLongEdge { value: *value },
             ResizeMode::ExactSize { width, height, keep_aspect_ratio } => {
-                crate::InternalResizeMode::ExactSize { width, height, keep_aspect_ratio }
-            },
+                crate::InternalResizeMode::ExactSize {
+                    width: *width,
+                    height: *height,
+                    keep_aspect_ratio: *keep_aspect_ratio,
+                }
+            }
             ResizeMode::ScalePercentage { percentage } => {
-                crate::InternalResizeMode::ScalePercentage { percentage }
-            },
+                crate::InternalResizeMode::ScalePercentage { percentage: *percentage }
+            }
         },
         output_format: match request.output_format {
             OutputFormat::Jpeg => crate::InternalOutputFormat::Jpeg,
@@ -72,9 +104,17 @@ pub fn compress_image(request: CompressionRequest) -> Result<CompressionResponse
             OutputFormat::Webp => crate::InternalOutputFormat::Webp,
             OutputFormat::Auto => crate::InternalOutputFormat::Auto,
         },
-    };
+    }
+}
 
-    let response = compress_image_internal(&internal_request).map_err(|e| e.to_string())?;
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+/// Single-image synchronous compression. Used as fallback and for single images.
+pub fn compress_image(request: CompressionRequest) -> Result<CompressionResponse, String> {
+    let req_id = request.id.clone();
+    let internal = to_internal_request(&request);
+
+    let response = compress_image_internal(&internal).map_err(|e| e.to_string())?;
 
     Ok(CompressionResponse {
         id: req_id,
@@ -87,48 +127,74 @@ pub fn compress_image(request: CompressionRequest) -> Result<CompressionResponse
     })
 }
 
+/// Batch compression using the singleton Rayon thread pool.
+/// Required by frb_generated.rs — kept for API compatibility.
 pub fn compress_images_batch(
     requests: Vec<CompressionRequest>,
 ) -> Vec<Option<CompressionResponse>> {
-    requests
-        .into_par_iter()
-        .map(|req| compress_image(req).ok())
-        .collect()
+    let pool = get_compression_pool();
+    pool.install(|| {
+        requests
+            .into_par_iter()
+            .map(|req| compress_image(req).ok())
+            .collect()
+    })
 }
 
+/// Streaming batch compression using the singleton Rayon thread pool.
+///
+/// Results are dispatched to the Dart sink IMMEDIATELY as each image finishes,
+/// in ANY order (unordered). This maximizes throughput on multi-core devices:
+/// a 5-second large image won't block reporting 10 fast small images behind it.
+///
+/// The Dart side correlates results by `id`.
 pub fn compress_images_stream(
     requests: Vec<CompressionRequest>,
     sink: StreamSink<CompressionTaskProgress>,
 ) {
-    requests.into_par_iter().for_each(|req| {
-        let req_id = req.id.clone();
-        match compress_image(req) {
-            Ok(resp) => {
-                let _ = sink.add(CompressionTaskProgress {
-                    id: req_id,
-                    success: true,
-                    response: Some(resp),
-                    error: None,
-                });
+    let pool = get_compression_pool();
+    pool.install(|| {
+        requests.into_par_iter().for_each(|req| {
+            let req_id = req.id.clone();
+            let internal = to_internal_request(&req);
+
+            match compress_image_internal(&internal) {
+                Ok(resp) => {
+                    let _ = sink.add(CompressionTaskProgress {
+                        id: req_id.clone(),
+                        success: true,
+                        response: Some(CompressionResponse {
+                            id: req_id,
+                            output_path: resp.output_path.to_string_lossy().into_owned(),
+                            original_bytes: resp.original_bytes,
+                            compressed_bytes: resp.compressed_bytes,
+                            width: resp.width,
+                            height: resp.height,
+                            format: resp.format,
+                        }),
+                        error: None,
+                    });
+                }
+                Err(err) => {
+                    let _ = sink.add(CompressionTaskProgress {
+                        id: req_id,
+                        success: false,
+                        response: None,
+                        error: Some(err.to_string()),
+                    });
+                }
             }
-            Err(err) => {
-                let _ = sink.add(CompressionTaskProgress {
-                    id: req_id,
-                    success: false,
-                    response: None,
-                    error: Some(err),
-                });
-            }
-        }
+        });
     });
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+#[inline(always)]
 fn quality_clamp(q: u8) -> u8 {
-    if q == 0 {
-        80
-    } else if q > 100 {
-        100
-    } else {
-        q
+    match q {
+        0 => 80,
+        1..=100 => q,
+        _ => 100,
     }
 }

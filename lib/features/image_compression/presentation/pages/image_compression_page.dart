@@ -126,7 +126,8 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
                   if (controller.isCompressing || controller.statusMessage != null) ...[
                     CompressionProgressCard(controller: controller)
                         .animate()
-                        .fadeIn(duration: 300.ms),
+                        .fadeIn(duration: 300.ms)
+                        .slideY(begin: 0.1, end: 0, duration: 300.ms, curve: Curves.easeOutCubic),
                     const SizedBox(height: AppSpacing.lg),
                   ],
 
