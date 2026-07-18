@@ -26,10 +26,6 @@ class SectionCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-            color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
-            width: 0.5,
-          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: child,

@@ -129,10 +129,6 @@ class _StatBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
-          width: 0.5,
-        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

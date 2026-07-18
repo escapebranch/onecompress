@@ -70,12 +70,6 @@ class _CompressionCustomizationBottomSheetState
                     ? const Color(0xFF161B22).withValues(alpha: 0.92)
                     : Colors.white.withValues(alpha: 0.95),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.15)
-                      : Colors.black.withValues(alpha: 0.08),
-                  width: 1,
-                ),
               ),
               child: Column(
                 children: [
@@ -257,9 +251,6 @@ class _CompressionCustomizationBottomSheetState
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                  ),
                 ),
                 child: Text(
                   '${preset.quality}%',
@@ -453,12 +444,7 @@ class _CompressionCustomizationBottomSheetState
                   ? Colors.white.withValues(alpha: 0.04)
                   : Colors.black.withValues(alpha: 0.03)),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.primary
-                : (isDark ? Colors.white10 : Colors.black12),
-            width: isSelected ? 1.5 : 1.0,
-          ),
+          border: isSelected ? Border.all(color: AppColors.primary, width: 1.5) : null,
         ),
         child: Row(
           children: [
@@ -543,12 +529,7 @@ class _CompressionCustomizationBottomSheetState
                             ? Colors.white.withValues(alpha: 0.04)
                             : Colors.black.withValues(alpha: 0.03)),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (isDark ? Colors.white10 : Colors.black12),
-                      width: isSelected ? 1.5 : 1.0,
-                    ),
+                    border: isSelected ? Border.all(color: AppColors.primary, width: 1.5) : null,
                   ),
                   child: Row(
                     children: [

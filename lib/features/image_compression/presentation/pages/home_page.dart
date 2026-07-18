@@ -146,10 +146,6 @@ class HomePage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
                   ),
                   child: const HugeIcon(
                     icon: HugeIcons.strokeRoundedArchive01,
@@ -209,10 +205,6 @@ class HomePage extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.amber.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.amber.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
                     ),
                     child: const HugeIcon(
                       icon: HugeIcons.strokeRoundedMaximize01,

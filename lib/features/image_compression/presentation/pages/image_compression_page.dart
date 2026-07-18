@@ -171,10 +171,6 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.25),
-                width: 1,
-              ),
             ),
             child: const Center(
               child: HugeIcon(
@@ -303,9 +299,6 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
                       width: 100,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark ? Colors.white24 : Colors.black12,
-                        ),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Image.file(

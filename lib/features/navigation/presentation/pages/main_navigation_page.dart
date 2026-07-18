@@ -127,7 +127,6 @@ class _FloatingNavigationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaceColor = theme.colorScheme.surface;
-    final outlineColor = theme.colorScheme.outline;
     final primaryColor = theme.colorScheme.primary;
 
     return Container(
@@ -135,10 +134,6 @@ class _FloatingNavigationBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: surfaceColor,
         borderRadius: BorderRadius.circular(36),
-        border: Border.all(
-          color: outlineColor.withValues(alpha: 0.1),
-          width: 1,
-        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
