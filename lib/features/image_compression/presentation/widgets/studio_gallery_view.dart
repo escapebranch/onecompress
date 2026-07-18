@@ -290,21 +290,19 @@ class StudioGalleryView extends StatelessWidget {
                 ),
               ),
 
-              // 2. Subtle Bottom Gradient for Text Legibility
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: 40,
+              // 2. Subtle Dark Gradient Overlay for Contrast
+              Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
                       colors: [
-                        Colors.black.withValues(alpha: 0.6),
+                        Colors.black.withValues(alpha: 0.85),
+                        Colors.black.withValues(alpha: 0.35),
                         Colors.transparent,
                       ],
+                      stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
                 ),
@@ -317,9 +315,9 @@ class StudioGalleryView extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.4),
+                    color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   child: Text(
                     formatName,
@@ -356,7 +354,7 @@ class StudioGalleryView extends StatelessWidget {
                   ),
                 ),
 
-              // 5. High-end Completion Badge (Phase 2)
+              // 5. High-end Dark Glass Completion Badge
               if (isCompressed)
                 Positioned(
                   top: 6,
@@ -364,11 +362,15 @@ class StudioGalleryView extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: Colors.black.withValues(alpha: 0.70),
                       shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        width: 0.8,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.4),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -382,7 +384,7 @@ class StudioGalleryView extends StatelessWidget {
                   ),
                 ),
 
-              // 6. Size Tag (Bottom Left)
+              // 6. Size Tag (Bottom Left) - Crisp White with Contrast Shadow
               Positioned(
                 bottom: 8,
                 left: 8,
@@ -390,11 +392,14 @@ class StudioGalleryView extends StatelessWidget {
                   isCompressed && compressedSizeMb != null
                       ? '$compressedSizeMb MB'
                       : '$origMb MB',
-                  style: TextStyle(
-                    color: isCompressed ? AppColors.primaryLight : Colors.white,
-                    fontWeight: FontWeight.w600,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
                     fontSize: 10,
-                    letterSpacing: 0.2,
+                    letterSpacing: 0.3,
+                    shadows: [
+                      Shadow(color: Colors.black87, blurRadius: 4),
+                    ],
                   ),
                 ),
               ),
@@ -429,30 +434,12 @@ class StudioGalleryView extends StatelessWidget {
     final isUniform = images.every((img) => img.format == firstFormat);
 
     if (isUniform) {
-      return '${firstFormat.badgeName} BATCH';
+      return firstFormat.badgeName;
     }
-    return 'MIXED BATCH';
+    return 'MIXED';
   }
 
   static Color _getBatchFormatColor(List<SelectedImage> images, bool isDark) {
-    if (images.isEmpty) return isDark ? Colors.white70 : Colors.black87;
-    final firstFormat = images.first.format;
-    final isUniform = images.every((img) => img.format == firstFormat);
-
-    if (!isUniform) return isDark ? Colors.white70 : Colors.black87;
-    return _getFormatBadgeColor(firstFormat, isDark);
-  }
-
-  static Color _getFormatBadgeColor(SupportedImageFormat format, bool isDark) {
-    switch (format) {
-      case SupportedImageFormat.png:
-        return Colors.blue;
-      case SupportedImageFormat.jpeg:
-        return Colors.orange;
-      case SupportedImageFormat.webp:
-        return Colors.purple;
-      case SupportedImageFormat.unsupported:
-        return Colors.grey;
-    }
+    return AppColors.primary;
   }
 }

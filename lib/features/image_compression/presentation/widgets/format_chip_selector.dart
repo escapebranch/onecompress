@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 
@@ -83,15 +82,19 @@ class FormatChipSelector extends StatelessWidget {
     required bool isAvailable,
     String? badge,
   }) {
-    final activeBg = isDark ? AppColors.primary.withValues(alpha: 0.15) : AppColors.primary;
-    final activeFg = isDark ? AppColors.primary : Colors.white;
+    final activeBg = isDark
+        ? Colors.white
+        : const Color(0xFF1C1C1E);
+    final activeFg = isDark
+        ? const Color(0xFF1C1C1E)
+        : Colors.white;
 
     final inactiveBg = isDark
-        ? Colors.white.withValues(alpha: 0.05)
-        : Colors.black.withValues(alpha: 0.03);
+        ? const Color(0xFF2C2C2E)
+        : const Color(0xFFF2F2F7);
     final inactiveFg = isDark
-        ? Colors.white.withValues(alpha: 0.5)
-        : Colors.black.withValues(alpha: 0.5);
+        ? Colors.white.withValues(alpha: 0.60)
+        : Colors.black.withValues(alpha: 0.55);
 
     return GestureDetector(
       onTap: () {
@@ -113,26 +116,26 @@ class FormatChipSelector extends StatelessWidget {
         }
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isActive ? activeBg : inactiveBg,
-          borderRadius: BorderRadius.circular(100), // Perfect pill shape
+          borderRadius: BorderRadius.circular(100),
           border: Border.all(
             color: isActive
                 ? Colors.transparent
                 : (isDark
-                    ? Colors.white.withValues(alpha: 0.05)
-                    : Colors.black.withValues(alpha: 0.05)),
-            width: 1,
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.06)),
+            width: 0.8,
           ),
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: activeBg.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    color: (isDark ? Colors.black : Colors.black).withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
                 ]
               : [],
