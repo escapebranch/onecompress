@@ -291,9 +291,10 @@ fn pre_convert_color_space(image: DynamicImage, target: InternalOutputFormat) ->
 }
 
 // ─── Resize ───────────────────────────────────────────────────────────────────
-// CatmullRom (bicubic) = best quality-to-speed ratio for downscaling.
-// Lanczos3 is sharper but ~3x slower — not worth it for compression output.
-// Triangle (bilinear) is faster but visibly blurrier on text/fine detail.
+// Hardware SIMD-accelerated resizing via `fast_image_resize` (ARM NEON / AVX2).
+// CatmullRom (bicubic convolution) provides optimal edge sharpness and quality.
+
+use fast_image_resize as fr;
 
 fn apply_resize(image: DynamicImage, mode: &InternalResizeMode) -> DynamicImage {
     let width = image.width();
@@ -303,19 +304,20 @@ fn apply_resize(image: DynamicImage, mode: &InternalResizeMode) -> DynamicImage 
         return image;
     }
 
-    match mode {
-        InternalResizeMode::None => image,
+    let (next_width, next_height, exact) = match mode {
+        InternalResizeMode::None => return image,
         InternalResizeMode::MaxLongEdge { value } => {
             let max_long_edge = *value;
             let long_edge = width.max(height);
-            // Skip resize if already within bounds (common case, zero allocation)
             if long_edge <= max_long_edge {
                 return image;
             }
             let scale = max_long_edge as f64 / long_edge as f64;
-            let next_width = ((width as f64 * scale).round() as u32).max(1);
-            let next_height = ((height as f64 * scale).round() as u32).max(1);
-            image.resize(next_width, next_height, image::imageops::FilterType::CatmullRom)
+            (
+                ((width as f64 * scale).round() as u32).max(1),
+                ((height as f64 * scale).round() as u32).max(1),
+                false,
+            )
         }
         InternalResizeMode::ExactSize {
             width: target_width,
@@ -325,17 +327,83 @@ fn apply_resize(image: DynamicImage, mode: &InternalResizeMode) -> DynamicImage 
             let target_w = (*target_width).max(1);
             let target_h = (*target_height).max(1);
             if *keep_aspect_ratio {
-                image.resize(target_w, target_h, image::imageops::FilterType::CatmullRom)
+                let scale = (target_w as f64 / width as f64).min(target_h as f64 / height as f64);
+                (
+                    ((width as f64 * scale).round() as u32).max(1),
+                    ((height as f64 * scale).round() as u32).max(1),
+                    false,
+                )
             } else {
-                image.resize_exact(target_w, target_h, image::imageops::FilterType::CatmullRom)
+                (target_w, target_h, true)
             }
         }
         InternalResizeMode::ScalePercentage { percentage } => {
             let scale = (*percentage as f64 / 100.0).max(0.01);
-            let next_width = ((width as f64 * scale).round() as u32).max(1);
-            let next_height = ((height as f64 * scale).round() as u32).max(1);
-            image.resize(next_width, next_height, image::imageops::FilterType::CatmullRom)
+            (
+                ((width as f64 * scale).round() as u32).max(1),
+                ((height as f64 * scale).round() as u32).max(1),
+                false,
+            )
         }
+    };
+
+    if next_width == width && next_height == height {
+        return image;
+    }
+
+    let pixel_type = match image.color() {
+        ColorType::Rgb8 => fr::PixelType::U8x3,
+        ColorType::Rgba8 => fr::PixelType::U8x4,
+        ColorType::L8 => fr::PixelType::U8,
+        ColorType::La8 => fr::PixelType::U8x2,
+        _ => {
+            return if exact {
+                image.resize_exact(next_width, next_height, image::imageops::FilterType::CatmullRom)
+            } else {
+                image.resize(next_width, next_height, image::imageops::FilterType::CatmullRom)
+            };
+        }
+    };
+
+    let mut src_bytes = image.as_bytes().to_vec();
+    let src_image = match fr::images::Image::from_slice_u8(width, height, &mut src_bytes, pixel_type) {
+        Ok(img) => img,
+        Err(_) => return image,
+    };
+
+    let mut dst_image = fr::images::Image::new(next_width, next_height, pixel_type);
+
+    let mut resizer = fr::Resizer::new();
+    let options = fr::ResizeOptions::new().resize_alg(fr::ResizeAlg::Convolution(fr::FilterType::CatmullRom));
+
+    if resizer.resize(&src_image, &mut dst_image, &options).is_err() {
+        return image;
+    }
+
+    let buffer = dst_image.into_vec();
+
+    match pixel_type {
+        fr::PixelType::U8x3 => {
+            image::ImageBuffer::from_raw(next_width, next_height, buffer)
+                .map(DynamicImage::ImageRgb8)
+                .unwrap_or(image)
+        }
+        fr::PixelType::U8x4 => {
+            image::ImageBuffer::from_raw(next_width, next_height, buffer)
+                .map(DynamicImage::ImageRgba8)
+                .unwrap_or(image)
+        }
+        fr::PixelType::U8 => {
+            image::ImageBuffer::from_raw(next_width, next_height, buffer)
+                .map(DynamicImage::ImageLuma8)
+                .unwrap_or(image)
+        }
+        fr::PixelType::U8x2 => {
+            image::ImageBuffer::from_raw(next_width, next_height, buffer)
+                .map(DynamicImage::ImageLumaA8)
+                .unwrap_or(image)
+        }
+        _ => image,
     }
 }
 
