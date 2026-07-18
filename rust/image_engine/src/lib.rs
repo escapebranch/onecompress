@@ -3,7 +3,6 @@ mod frb_generated;
 
 use image::codecs::jpeg::JpegEncoder;
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
-use image::codecs::webp::WebPEncoder;
 use image::{ColorType, DynamicImage, ImageEncoder, ImageFormat, ImageReader};
 use std::fs;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
@@ -154,8 +153,8 @@ pub fn compress_image_internal(
             encode_png(image, request.png_level, &mut buffered_writer)?;
         }
         InternalOutputFormat::Webp => {
-            info!("[compress] ENCODE_WEBP file={}", file_name);
-            encode_webp(image, &mut buffered_writer)?;
+            info!("[compress] ENCODE_WEBP file={} quality={}", file_name, request.quality);
+            encode_webp(image, request.quality, &mut buffered_writer)?;
         }
         InternalOutputFormat::Auto => {
             info!("[compress] ENCODE_JPEG(auto) file={} quality={}", file_name, request.quality);
@@ -454,21 +453,29 @@ fn encode_png<W: Write>(
 }
 
 // ─── WebP Encoder ─────────────────────────────────────────────────────────────
-// The `image` crate v0.25 only provides a lossless WebP encoder.
-// WebP lossless on photographic images produces files LARGER than JPEG,
-// but is ideal for graphics, illustrations, and screenshots (perfect quality).
-//
-// For compression-focused use the user should choose JPEG or Auto.
-// WebP is offered as a "maximum quality" format for graphics workflows.
+// Hardware-accelerated lossy & lossless WebP encoding via Google's `libwebp` C library.
+// Provides 30%-50% smaller file sizes than JPEG at identical visual quality (SSIM).
 
 fn encode_webp<W: Write>(
     image: DynamicImage,
+    quality: u8,
     writer: &mut W,
 ) -> Result<(), ImageEngineError> {
+    let width = image.width();
+    let height = image.height();
     let rgba = image.into_rgba8();
-    let encoder = WebPEncoder::new_lossless(writer);
-    encoder
-        .write_image(rgba.as_raw(), rgba.width(), rgba.height(), ColorType::Rgba8.into())
+
+    let encoder = webp::Encoder::from_rgba(rgba.as_raw(), width, height);
+
+    // If quality == 100, use lossless WebP encoding; otherwise use lossy WebP at specified quality
+    let webp_data = if quality >= 100 {
+        encoder.encode_lossless()
+    } else {
+        encoder.encode(quality as f32)
+    };
+
+    writer
+        .write_all(&webp_data)
         .map_err(|e| ImageEngineError::Encode(e.to_string()))?;
     Ok(())
 }

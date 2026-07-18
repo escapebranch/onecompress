@@ -19,6 +19,8 @@ num_cpus = "1.16"
 # Structured logging — log is the facade, android_logger routes to logcat on Android
 log = "0.4"
 android_logger = "0.14"
+webp = "0.3"
+
 
 # CRITICAL FOR ENGINE PERFORMANCE IN DEBUG MODE:
 # Image processing algorithms (Huffman decode, IDCT, CatmullRom convolution)
