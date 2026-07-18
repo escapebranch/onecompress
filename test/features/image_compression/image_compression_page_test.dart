@@ -6,6 +6,7 @@ import 'package:onecompress/features/image_compression/data/datasources/raster_i
 import 'package:onecompress/features/image_compression/data/datasources/share_data_source.dart';
 import 'package:onecompress/features/image_compression/data/repositories/image_compression_repository_impl.dart';
 import 'package:onecompress/features/image_compression/domain/usecases/compress_images_use_case.dart';
+import 'package:onecompress/features/image_compression/domain/usecases/get_default_export_directory_use_case.dart';
 import 'package:onecompress/features/image_compression/domain/usecases/pick_export_directory_use_case.dart';
 import 'package:onecompress/features/image_compression/domain/usecases/pick_images_use_case.dart';
 import 'package:onecompress/features/image_compression/domain/usecases/save_compressed_images_use_case.dart';
@@ -24,6 +25,7 @@ void main() {
         dependencies: ImageCompressionDependencies(
           pickImages: PickImagesUseCase(repository),
           pickExportDirectory: PickExportDirectoryUseCase(repository),
+          getDefaultExportDirectory: GetDefaultExportDirectoryUseCase(repository),
           compressImages: CompressImagesUseCase(repository),
           saveCompressedImages: SaveCompressedImagesUseCase(repository),
           shareCompressedImages: ShareCompressedImagesUseCase(repository),

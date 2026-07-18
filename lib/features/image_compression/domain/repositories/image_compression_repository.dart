@@ -8,6 +8,8 @@ abstract class ImageCompressionRepository {
 
   Future<String?> pickExportDirectory();
 
+  Future<String> getDefaultExportDirectory();
+
   Stream<CompressionTaskUpdate> compressImages({
     required List<SelectedImage> images,
     required CompressionPreset preset,

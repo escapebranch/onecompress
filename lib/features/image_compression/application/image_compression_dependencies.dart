@@ -3,6 +3,7 @@ import '../data/datasources/image_engine_data_source_factory.dart';
 import '../data/datasources/share_data_source.dart';
 import '../data/repositories/image_compression_repository_impl.dart';
 import '../domain/usecases/compress_images_use_case.dart';
+import '../domain/usecases/get_default_export_directory_use_case.dart';
 import '../domain/usecases/pick_export_directory_use_case.dart';
 import '../domain/usecases/pick_images_use_case.dart';
 import '../domain/usecases/save_compressed_images_use_case.dart';
@@ -12,6 +13,7 @@ class ImageCompressionDependencies {
   const ImageCompressionDependencies({
     required this.pickImages,
     required this.pickExportDirectory,
+    required this.getDefaultExportDirectory,
     required this.compressImages,
     required this.saveCompressedImages,
     required this.shareCompressedImages,
@@ -19,6 +21,7 @@ class ImageCompressionDependencies {
 
   final PickImagesUseCase pickImages;
   final PickExportDirectoryUseCase pickExportDirectory;
+  final GetDefaultExportDirectoryUseCase getDefaultExportDirectory;
   final CompressImagesUseCase compressImages;
   final SaveCompressedImagesUseCase saveCompressedImages;
   final ShareCompressedImagesUseCase shareCompressedImages;
@@ -33,6 +36,7 @@ class ImageCompressionDependencies {
     return ImageCompressionDependencies(
       pickImages: PickImagesUseCase(repository),
       pickExportDirectory: PickExportDirectoryUseCase(repository),
+      getDefaultExportDirectory: GetDefaultExportDirectoryUseCase(repository),
       compressImages: CompressImagesUseCase(repository),
       saveCompressedImages: SaveCompressedImagesUseCase(repository),
       shareCompressedImages: ShareCompressedImagesUseCase(repository),

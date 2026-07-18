@@ -34,6 +34,11 @@ class ImageCompressionRepositoryImpl implements ImageCompressionRepository {
   }
 
   @override
+  Future<String> getDefaultExportDirectory() {
+    return filePickerDataSource.getDefaultExportDirectory();
+  }
+
+  @override
   Stream<CompressionTaskUpdate> compressImages({
     required List<SelectedImage> images,
     required CompressionPreset preset,

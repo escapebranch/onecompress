@@ -145,26 +145,30 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
     );
   }
 
-  void _handleSaveAll(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle02, color: AppColors.primary, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Saved ${widget.controller.compressedImages.length} compressed image(s) to device gallery!',
+  Future<void> _handleSaveAll(BuildContext context) async {
+    final savePath = await widget.controller.saveCompressedImages();
+    if (!context.mounted) return;
+    if (savePath != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle02, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Saved ${widget.controller.compressedImages.length} compressed image(s) to OneCompress folder!',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+        );
+    }
   }
 
   void _handleImageItemTap(BuildContext context, SelectedImage item) {

@@ -28,6 +28,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _controller = ImageCompressionController(
       pickImagesUseCase: widget.dependencies.pickImages,
       pickExportDirectoryUseCase: widget.dependencies.pickExportDirectory,
+      getDefaultExportDirectoryUseCase: widget.dependencies.getDefaultExportDirectory,
       compressImagesUseCase: widget.dependencies.compressImages,
       saveCompressedImagesUseCase: widget.dependencies.saveCompressedImages,
       shareCompressedImagesUseCase: widget.dependencies.shareCompressedImages,

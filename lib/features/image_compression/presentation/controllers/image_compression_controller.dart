@@ -9,6 +9,7 @@ import '../../domain/entities/compressed_image.dart';
 import '../../domain/entities/compression_preset.dart';
 import '../../domain/entities/selected_image.dart';
 import '../../domain/usecases/compress_images_use_case.dart';
+import '../../domain/usecases/get_default_export_directory_use_case.dart';
 import '../../domain/usecases/pick_export_directory_use_case.dart';
 import '../../domain/usecases/pick_images_use_case.dart';
 import '../../domain/usecases/save_compressed_images_use_case.dart';
@@ -18,6 +19,7 @@ class ImageCompressionController extends ChangeNotifier {
   ImageCompressionController({
     required this.pickImagesUseCase,
     required this.pickExportDirectoryUseCase,
+    required this.getDefaultExportDirectoryUseCase,
     required this.compressImagesUseCase,
     required this.saveCompressedImagesUseCase,
     required this.shareCompressedImagesUseCase,
@@ -25,6 +27,7 @@ class ImageCompressionController extends ChangeNotifier {
 
   final PickImagesUseCase pickImagesUseCase;
   final PickExportDirectoryUseCase pickExportDirectoryUseCase;
+  final GetDefaultExportDirectoryUseCase getDefaultExportDirectoryUseCase;
   final CompressImagesUseCase compressImagesUseCase;
   final SaveCompressedImagesUseCase saveCompressedImagesUseCase;
   final ShareCompressedImagesUseCase shareCompressedImagesUseCase;
@@ -313,18 +316,20 @@ class ImageCompressionController extends ChangeNotifier {
 
   // ─── Save / Share ──────────────────────────────────────────────────────────
 
-  Future<void> saveCompressedImages() async {
-    if (_compressedImages.isEmpty) return;
-    final directory = await pickExportDirectoryUseCase();
-    if (directory == null) return;
+  Future<String?> saveCompressedImages({String? customDirectory}) async {
+    if (_compressedImages.isEmpty) return null;
+    final directory = customDirectory ?? await getDefaultExportDirectoryUseCase();
     try {
       await saveCompressedImagesUseCase(images: _compressedImages, destinationDirectory: directory);
-      _statusMessage = 'Saved ${_compressedImages.length} compressed image(s).';
+      _statusMessage = 'Saved ${_compressedImages.length} compressed image(s) to OneCompress folder.';
       notifyListeners();
+      return directory;
     } on AppFailure catch (failure) {
       _setError(failure.message);
+      return null;
     } catch (error) {
       _setError('Unable to save files: $error');
+      return null;
     }
   }
 
