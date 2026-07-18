@@ -93,7 +93,7 @@ class _CompressionCustomizationBottomSheetState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Customization Studio',
+                              'Batch Customization',
                               style: AppTypography.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color: isDark ? Colors.white : AppColors.lightTextPrimary,
@@ -101,7 +101,9 @@ class _CompressionCustomizationBottomSheetState
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Fine-tune quality, format & dimensions',
+                              controller.selectedImages.isEmpty
+                                  ? 'Fine-tune quality, target format & dimensions'
+                                  : 'Customizing parameters for ${controller.selectedImages.length} batch file${controller.selectedImages.length == 1 ? '' : 's'}',
                               style: AppTypography.textTheme.bodySmall?.copyWith(
                                 color: isDark
                                     ? AppColors.darkTextSecondary
