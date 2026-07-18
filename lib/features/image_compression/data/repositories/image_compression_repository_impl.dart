@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:gal/gal.dart';
 import 'package:path/path.dart' as path;
 
 import '../../domain/entities/compressed_image.dart';
@@ -60,6 +61,13 @@ class ImageCompressionRepositoryImpl implements ImageCompressionRepository {
     for (final image in images) {
       final targetPath = path.join(destination.path, image.outputFileName);
       await File(image.outputPath).copy(targetPath);
+
+      // Register with device Gallery / Photos MediaStore album
+      try {
+        await Gal.putImage(targetPath, album: 'OneCompress');
+      } catch (_) {
+        // Fallback for platform/permission environments where MediaStore indexing is unavailable
+      }
     }
   }
 

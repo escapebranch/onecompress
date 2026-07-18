@@ -44,6 +44,7 @@ dependencies:
   flutter_animate: ^4.5.2
   hugeicons: ^1.1.7
   path_provider: ^2.1.6
+  gal: ^2.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
