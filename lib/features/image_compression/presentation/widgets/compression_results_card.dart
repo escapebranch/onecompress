@@ -44,12 +44,7 @@ class CompressionResultsCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.primaryContainer,
-                    theme.colorScheme.tertiaryContainer.withValues(alpha: 0.7),
-                  ],
-                ),
+                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(

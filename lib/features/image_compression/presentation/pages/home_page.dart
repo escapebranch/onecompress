@@ -71,19 +71,8 @@ class HomePage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppSpacing.xs + 2),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
               child: const HugeIcon(
                 icon: HugeIcons.strokeRoundedArchive01,
@@ -92,19 +81,12 @@ class HomePage extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Colors.white, Color(0xFFE2E8F0)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ).createShader(bounds),
-              child: Text(
-                'OneCompress',
-                style: AppTypography.textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: -0.5,
-                ),
+            Text(
+              'OneCompress',
+              style: AppTypography.textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                letterSpacing: -0.5,
               ),
             ),
           ],

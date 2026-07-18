@@ -29,22 +29,8 @@ class RibbonBadge extends StatelessWidget {
               child: Container(
                 width: 110,
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFFFF9500),
-                      Color(0xFFFF5E00),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFF9500),
                 ),
                 alignment: Alignment.center,
                 child: Text(

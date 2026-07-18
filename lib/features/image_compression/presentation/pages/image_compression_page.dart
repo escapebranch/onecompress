@@ -169,26 +169,12 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
             width: 84,
             height: 84,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary.withValues(alpha: 0.25),
-                  AppColors.primaryLight.withValues(alpha: 0.1),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.4),
-                width: 1.5,
+                color: AppColors.primary.withValues(alpha: 0.25),
+                width: 1,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
             ),
             child: const Center(
               child: HugeIcon(
@@ -197,8 +183,7 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
                 size: 42,
               ),
             ),
-          ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-              .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 1500.ms),
+          ),
 
           const SizedBox(height: AppSpacing.lg),
 
@@ -332,31 +317,22 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
                         ),
                       ),
                     ),
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withValues(alpha: 0.6),
-                              Colors.transparent,
-                            ],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                        ),
-                      ),
-                    ),
                     Positioned(
                       bottom: 6,
                       left: 6,
-                      right: 6,
-                      child: Text(
-                        '$mb MB',
-                        style: AppTypography.textTheme.labelSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '$mb MB',
+                          style: AppTypography.textTheme.labelSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                          ),
                         ),
                       ),
                     ),
