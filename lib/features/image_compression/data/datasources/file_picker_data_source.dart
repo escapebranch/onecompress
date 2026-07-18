@@ -11,7 +11,22 @@ class FilePickerDataSource {
   final ImagePicker _imagePicker = ImagePicker();
 
   Future<List<SelectedImage>> pickImages() async {
-    // 1. Try native System Photo Picker (pickMultiImage) first
+    // 1. Try FilePicker with FileType.custom (forces ACTION_GET_CONTENT with EXTRA_ALLOW_MULTIPLE on Android)
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'bmp'],
+        withData: false,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final images = _processFilePickerFiles(result.files);
+        if (images.isNotEmpty) return images;
+      }
+    } catch (_) {}
+
+    // 2. Try ImagePicker pickMultiImage() as second strategy
     try {
       final xFiles = await _imagePicker.pickMultiImage();
       if (xFiles.isNotEmpty) {
@@ -32,39 +47,42 @@ class FilePickerDataSource {
             ),
           );
         }
-        if (images.isNotEmpty) {
-          return images;
-        }
+        if (images.isNotEmpty) return images;
       }
-    } catch (_) {
-      // Fallback to FilePicker if ImagePicker fails
-    }
+    } catch (_) {}
 
-    // 2. Fallback to FilePicker with allowMultiple: true
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.image,
-      withData: false,
-    );
+    // 3. Fallback to FilePicker with FileType.any (allows selecting multiple files of any extension)
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.any,
+        withData: false,
+      );
 
-    if (result == null) {
-      return const [];
-    }
+      if (result != null && result.files.isNotEmpty) {
+        final imageFiles = result.files.where((f) {
+          final ext = f.extension?.toLowerCase() ?? '';
+          return ['jpg', 'jpeg', 'png', 'webp', 'heic', 'bmp'].contains(ext) ||
+              f.path != null && _isImagePath(f.path!);
+        }).toList();
+        final images = _processFilePickerFiles(imageFiles);
+        if (images.isNotEmpty) return images;
+      }
+    } catch (_) {}
 
+    return const [];
+  }
+
+  List<SelectedImage> _processFilePickerFiles(List<PlatformFile> files) {
     final images = <SelectedImage>[];
-
-    for (final file in result.files) {
+    for (final file in files) {
       final pathStr = file.path;
-      if (pathStr == null) {
-        continue;
-      }
+      if (pathStr == null) continue;
 
       final imageFile = File(pathStr);
-      if (!await imageFile.exists()) {
-        continue;
-      }
+      if (!imageFile.existsSync()) continue;
 
-      final bytes = await imageFile.length();
+      final bytes = imageFile.lengthSync();
       final format = _resolveFormat(pathStr);
       images.add(
         SelectedImage(
@@ -75,8 +93,17 @@ class FilePickerDataSource {
         ),
       );
     }
-
     return images;
+  }
+
+  bool _isImagePath(String pathStr) {
+    final lower = pathStr.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.heic') ||
+        lower.endsWith('.bmp');
   }
 
   Future<String?> pickExportDirectory() {
