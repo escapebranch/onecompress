@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -7,7 +8,39 @@ import '../../../../core/errors/app_failure.dart';
 import '../../domain/entities/selected_image.dart';
 
 class FilePickerDataSource {
+  final ImagePicker _imagePicker = ImagePicker();
+
   Future<List<SelectedImage>> pickImages() async {
+    // 1. Try native System Photo Picker (pickMultiImage) first
+    try {
+      final xFiles = await _imagePicker.pickMultiImage();
+      if (xFiles.isNotEmpty) {
+        final images = <SelectedImage>[];
+        for (final xFile in xFiles) {
+          final filePath = xFile.path;
+          final imageFile = File(filePath);
+          if (!await imageFile.exists()) continue;
+
+          final bytes = await imageFile.length();
+          final format = _resolveFormat(filePath);
+          images.add(
+            SelectedImage(
+              path: filePath,
+              fileName: xFile.name.isNotEmpty ? xFile.name : path.basename(filePath),
+              originalBytes: bytes,
+              format: format,
+            ),
+          );
+        }
+        if (images.isNotEmpty) {
+          return images;
+        }
+      }
+    } catch (_) {
+      // Fallback to FilePicker if ImagePicker fails
+    }
+
+    // 2. Fallback to FilePicker with allowMultiple: true
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.image,
@@ -21,21 +54,21 @@ class FilePickerDataSource {
     final images = <SelectedImage>[];
 
     for (final file in result.files) {
-      final path = file.path;
-      if (path == null) {
+      final pathStr = file.path;
+      if (pathStr == null) {
         continue;
       }
 
-      final imageFile = File(path);
+      final imageFile = File(pathStr);
       if (!await imageFile.exists()) {
         continue;
       }
 
       final bytes = await imageFile.length();
-      final format = _resolveFormat(path);
+      final format = _resolveFormat(pathStr);
       images.add(
         SelectedImage(
-          path: path,
+          path: pathStr,
           fileName: file.name,
           originalBytes: bytes,
           format: format,
@@ -90,6 +123,9 @@ class FilePickerDataSource {
     }
     if (lower.endsWith('.png')) {
       return SupportedImageFormat.png;
+    }
+    if (lower.endsWith('.webp')) {
+      return SupportedImageFormat.webp;
     }
     return SupportedImageFormat.unsupported;
   }
