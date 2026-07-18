@@ -175,6 +175,28 @@ class ImageCompressionController extends ChangeNotifier {
     }
   }
 
+  Future<void> addMoreImages() async {
+    AppLog.info('Controller', 'addMoreImages() called');
+    _setError(null);
+    try {
+      final newImages = await pickImagesUseCase();
+      if (newImages.isEmpty) return;
+      final existingPaths = _selectedImages.map((i) => i.path).toSet();
+      final filteredNew = newImages.where((i) => !existingPaths.contains(i.path)).toList();
+      if (filteredNew.isEmpty) return;
+      _selectedImages = [..._selectedImages, ...filteredNew];
+      _statusMessage = '${_selectedImages.length} image${_selectedImages.length == 1 ? '' : 's'} in batch ready.';
+      AppLog.info('Controller', 'addMoreImages() done — total now ${_selectedImages.length}');
+      notifyListeners();
+    } on AppFailure catch (failure) {
+      AppLog.error('Controller', 'addMoreImages() AppFailure: ${failure.message}');
+      _setError(failure.message);
+    } catch (error) {
+      AppLog.error('Controller', 'addMoreImages() unexpected error', error: error);
+      _setError('Unable to add more images: $error');
+    }
+  }
+
   // ─── Compress ─────────────────────────────────────────────────────────────
 
   Future<void> compress() async {
