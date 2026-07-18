@@ -27,7 +27,7 @@ class ImageBatchGalleryCard extends StatelessWidget {
     final totalMb = (totalBytes / (1024 * 1024)).toStringAsFixed(2);
 
     final detectedBatchFormat = _getBatchFormatLabel(images);
-    final formatColor = _getBatchFormatColor(images);
+    final monoColor = isDark ? Colors.white : AppColors.lightTextPrimary;
 
     return GlassCard(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -45,9 +45,13 @@ class ImageBatchGalleryCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: formatColor.withValues(alpha: 0.15),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: formatColor.withValues(alpha: 0.4)),
+                        border: Border.all(
+                          color: isDark ? Colors.white24 : Colors.black12,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -56,7 +60,7 @@ class ImageBatchGalleryCard extends StatelessWidget {
                             width: 7,
                             height: 7,
                             decoration: BoxDecoration(
-                              color: formatColor,
+                              color: monoColor,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -64,7 +68,7 @@ class ImageBatchGalleryCard extends StatelessWidget {
                           Text(
                             detectedBatchFormat,
                             style: AppTypography.textTheme.labelMedium?.copyWith(
-                              color: formatColor,
+                              color: monoColor,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.3,
                             ),
@@ -104,14 +108,14 @@ class ImageBatchGalleryCard extends StatelessWidget {
                   // Add More Button
                   TextButton.icon(
                     onPressed: controller.addMoreImages,
-                    icon: const HugeIcon(
+                    icon: HugeIcon(
                       icon: HugeIcons.strokeRoundedAdd01,
-                      color: AppColors.primary,
+                      color: monoColor,
                       size: 16,
                     ),
                     label: const Text('Add More'),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
+                      foregroundColor: monoColor,
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
@@ -128,13 +132,17 @@ class ImageBatchGalleryCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(AppSpacing.xs + 3),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : Colors.black.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                          border: Border.all(
+                            color: isDark ? Colors.white24 : Colors.black12,
+                          ),
                         ),
-                        child: const HugeIcon(
+                        child: HugeIcon(
                           icon: HugeIcons.strokeRoundedSettings01,
-                          color: AppColors.primary,
+                          color: monoColor,
                           size: 20,
                         ),
                       ),
@@ -312,25 +320,7 @@ class ImageBatchGalleryCard extends StatelessWidget {
     return 'IMAGE BATCH';
   }
 
-  static Color _getBatchFormatColor(List<SelectedImage> images) {
-    if (images.isEmpty) return AppColors.primary;
-    final firstFormat = images.first.format;
-    final isUniform = images.every((img) => img.format == firstFormat);
-
-    if (!isUniform) return AppColors.primary;
-    return _getFormatBadgeColor(firstFormat);
-  }
-
   static Color _getFormatBadgeColor(SupportedImageFormat format) {
-    switch (format) {
-      case SupportedImageFormat.png:
-        return Colors.blueAccent;
-      case SupportedImageFormat.jpeg:
-        return Colors.orangeAccent;
-      case SupportedImageFormat.webp:
-        return Colors.purpleAccent;
-      case SupportedImageFormat.unsupported:
-        return Colors.blueGrey;
-    }
+    return const Color(0xFF27272A); // Monochrome Dark Charcoal Pill
   }
 }

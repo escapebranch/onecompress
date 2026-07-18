@@ -66,30 +66,13 @@ class HomePage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.xs + 2),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const HugeIcon(
-                icon: HugeIcons.strokeRoundedArchive01,
-                color: Colors.white,
-                size: 26,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text(
-              'OneCompress',
-              style: AppTypography.textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : AppColors.lightTextPrimary,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ],
+        Text(
+          'OneCompress',
+          style: AppTypography.textTheme.headlineLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : AppColors.lightTextPrimary,
+            letterSpacing: -0.5,
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Row(
@@ -97,8 +80,8 @@ class HomePage extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(
-                color: AppColors.success,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white70 : AppColors.lightTextSecondary,
                 shape: BoxShape.circle,
               ),
             ),
@@ -144,12 +127,12 @@ class HomePage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.15),
+                    color: AppColors.accentBlue.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const HugeIcon(
                     icon: HugeIcons.strokeRoundedArchive01,
-                    color: AppColors.primary,
+                    color: AppColors.accentBlue,
                     size: 24,
                   ),
                 ),
@@ -257,7 +240,7 @@ class HomePage extends StatelessWidget {
             child: Text(
               'See All',
               style: AppTypography.textTheme.labelMedium?.copyWith(
-                color: AppColors.primary,
+                color: AppColors.accentBlue,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -268,6 +251,9 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildRecentsEmptyState(BuildContext context, bool isDark) {
+    final btnBg = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final btnFg = isDark ? Colors.black : Colors.white;
+
     return GlassCard(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -311,19 +297,28 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             ElevatedButton.icon(
               onPressed: onOpenCompress,
-              icon: const HugeIcon(
+              icon: HugeIcon(
                 icon: HugeIcons.strokeRoundedAdd01,
-                color: Colors.white,
-                size: 18,
+                color: btnFg,
+                size: 16,
               ),
-              label: const Text('Start Compressing'),
+              label: Text(
+                'Start Compressing',
+                style: AppTypography.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: btnFg,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
+                backgroundColor: btnBg,
+                foregroundColor: btnFg,
+                elevation: 0,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.xs + 4,
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs + 3,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),

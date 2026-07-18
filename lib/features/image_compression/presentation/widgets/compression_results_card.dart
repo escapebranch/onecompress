@@ -91,9 +91,9 @@ class CompressionResultsCard extends StatelessWidget {
                         child: Image.file(
                           File(result.outputPath),
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const ColoredBox(
-                            color: Color(0xFFE7E2D9),
-                            child: Icon(Icons.image_not_supported_outlined),
+                          errorBuilder: (_, _, _) => ColoredBox(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: const Icon(Icons.image_not_supported_outlined),
                           ),
                         ),
                       ),

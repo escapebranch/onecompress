@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 
@@ -83,18 +84,18 @@ class FormatChipSelector extends StatelessWidget {
     String? badge,
   }) {
     final activeBg = isDark
-        ? Colors.white
-        : const Color(0xFF1C1C1E);
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
     final activeFg = isDark
-        ? const Color(0xFF1C1C1E)
-        : Colors.white;
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
 
     final inactiveBg = isDark
-        ? const Color(0xFF2C2C2E)
-        : const Color(0xFFF2F2F7);
+        ? AppColors.darkSurfaceHighlight
+        : AppColors.lightSurfaceHighlight;
     final inactiveFg = isDark
-        ? Colors.white.withValues(alpha: 0.60)
-        : Colors.black.withValues(alpha: 0.55);
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return GestureDetector(
       onTap: () {

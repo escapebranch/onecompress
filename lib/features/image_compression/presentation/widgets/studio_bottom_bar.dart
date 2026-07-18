@@ -62,11 +62,11 @@ class StudioBottomBar extends StatelessWidget {
   }
 
   // 1. IDLE COMMANDER
+  // 1. IDLE COMMANDER
   Widget _buildIdleShower(BuildContext context, bool isDark, bool hasImages) {
     final fileCount = controller.selectedImages.length;
-    // Telegram active blue accent
-    final activeColor = AppColors.primary;
-    final fgColor = Colors.white;
+    final activeColor = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final fgColor = isDark ? Colors.black : Colors.white;
 
     return SizedBox(
       key: const ValueKey('idle_bar'),
@@ -114,6 +114,7 @@ class StudioBottomBar extends StatelessWidget {
     final progress = controller.progress;
     final completed = controller.completedCount;
     final total = controller.totalCount;
+    final primaryAccent = isDark ? Colors.white : AppColors.lightTextPrimary;
 
     return SizedBox(
       key: const ValueKey('progress_bar'),
@@ -127,12 +128,12 @@ class StudioBottomBar extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -149,7 +150,7 @@ class StudioBottomBar extends StatelessWidget {
                 '${(progress * 100).toInt()}%',
                 style: AppTypography.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+                  color: primaryAccent,
                 ),
               ),
             ],
@@ -163,7 +164,7 @@ class StudioBottomBar extends StatelessWidget {
               backgroundColor: isDark
                   ? Colors.white.withValues(alpha: 0.1)
                   : Colors.black.withValues(alpha: 0.05),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
             ),
           ),
         ],
@@ -182,6 +183,10 @@ class StudioBottomBar extends StatelessWidget {
         ? ((bytesSaved / totalOriginalBytes) * 100).clamp(0, 100).toInt()
         : 0;
 
+    final btnBg = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final btnFg = isDark ? Colors.black : Colors.white;
+    final primaryAccent = isDark ? Colors.white : AppColors.lightTextPrimary;
+
     return SizedBox(
       key: const ValueKey('success_bar'),
       height: 56,
@@ -196,16 +201,16 @@ class StudioBottomBar extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const HugeIcon(
+                      HugeIcon(
                         icon: HugeIcons.strokeRoundedCheckmarkBadge01,
-                        color: AppColors.primary,
+                        color: primaryAccent,
                         size: 16,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         'Success',
                         style: AppTypography.textTheme.labelSmall?.copyWith(
-                          color: AppColors.primary,
+                          color: primaryAccent,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5,
                         ),
@@ -227,24 +232,24 @@ class StudioBottomBar extends StatelessWidget {
           ElevatedButton(
             onPressed: onSaveAllPressed,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              backgroundColor: btnBg,
+              foregroundColor: btnFg,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(100),
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 HugeIcon(
                   icon: HugeIcons.strokeRoundedDownload01,
-                  color: Colors.white,
+                  color: btnFg,
                   size: 18,
                 ),
-                SizedBox(width: 6),
-                Text(
+                const SizedBox(width: 6),
+                const Text(
                   'Save All',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,

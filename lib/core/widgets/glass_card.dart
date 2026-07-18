@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
 class GlassCard extends StatelessWidget {
@@ -75,8 +74,8 @@ class GlassCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(borderRadius),
-          splashColor: AppColors.primary.withValues(alpha: 0.15),
-          highlightColor: AppColors.primary.withValues(alpha: 0.08),
+          splashColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+          highlightColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
           child: cardContent,
         ),
       );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../image_compression/application/image_compression_dependencies.dart';
 import '../../../image_compression/presentation/controllers/image_compression_controller.dart';
 import '../../../image_compression/presentation/pages/history_page.dart';
@@ -260,10 +261,10 @@ class _NavItem extends StatelessWidget {
                           minHeight: 18,
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: const BoxDecoration(
-                          color: Colors.redAccent,
+                        decoration: BoxDecoration(
+                          color: AppColors.accentDelete,
                           shape: BoxShape.rectangle,
-                          borderRadius: BorderRadius.all(Radius.circular(9)),
+                          borderRadius: const BorderRadius.all(Radius.circular(9)),
                         ),
                         alignment: Alignment.center,
                         child: Text(

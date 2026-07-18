@@ -62,12 +62,17 @@ class HistoryPage extends StatelessWidget {
                           width: 64,
                           height: 64,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
+                            color: isDark
+                                ? AppColors.darkSurfaceHighlight
+                                : AppColors.lightSurfaceHighlight,
                             shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                            ),
                           ),
-                          child: const HugeIcon(
+                          child: HugeIcon(
                             icon: HugeIcons.strokeRoundedTime02,
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.darkIcon : AppColors.lightIcon,
                             size: 32,
                           ),
                         ),

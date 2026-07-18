@@ -94,18 +94,18 @@ class UniversalCompressTypeSelector extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.blue.withValues(alpha: 0.12)
-                : Colors.blue.withValues(alpha: 0.08),
+                ? AppColors.darkSurfaceHighlight
+                : AppColors.lightSurfaceHighlight,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.blue.withValues(alpha: 0.2),
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
             ),
           ),
           child: Row(
             children: [
-              const HugeIcon(
+              HugeIcon(
                 icon: HugeIcons.strokeRoundedInformationCircle,
-                color: Colors.lightBlueAccent,
+                color: isDark ? AppColors.darkIcon : AppColors.lightIcon,
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.xs + 2),
@@ -228,12 +228,12 @@ class UniversalCompressTypeSelector extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.xs + 2),
                       decoration: BoxDecoration(
-                        color: Colors.purple.withValues(alpha: 0.15),
+                        color: AppColors.accentUpscale.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const HugeIcon(
                         icon: HugeIcons.strokeRoundedVideo01,
-                        color: Colors.purpleAccent,
+                        color: AppColors.accentUpscale,
                         size: 24,
                       ),
                     ),
@@ -260,7 +260,7 @@ class UniversalCompressTypeSelector extends StatelessWidget {
                     Text(
                       'Coming in v2.0',
                       style: AppTypography.textTheme.labelSmall?.copyWith(
-                        color: Colors.purpleAccent,
+                        color: AppColors.accentUpscale,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -282,12 +282,12 @@ class UniversalCompressTypeSelector extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.xs + 2),
                       decoration: BoxDecoration(
-                        color: Colors.teal.withValues(alpha: 0.15),
+                        color: AppColors.accentCompress.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const HugeIcon(
                         icon: HugeIcons.strokeRoundedVolumeHigh,
-                        color: Colors.tealAccent,
+                        color: AppColors.accentCompress,
                         size: 24,
                       ),
                     ),
@@ -314,7 +314,7 @@ class UniversalCompressTypeSelector extends StatelessWidget {
                     Text(
                       'Coming in v2.0',
                       style: AppTypography.textTheme.labelSmall?.copyWith(
-                        color: Colors.tealAccent,
+                        color: AppColors.accentCompress,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -336,12 +336,12 @@ class UniversalCompressTypeSelector extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.xs + 2),
                       decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.15),
+                        color: AppColors.accentWarning.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const HugeIcon(
                         icon: HugeIcons.strokeRoundedFile01,
-                        color: Colors.amber,
+                        color: AppColors.accentWarning,
                         size: 24,
                       ),
                     ),
@@ -368,7 +368,7 @@ class UniversalCompressTypeSelector extends StatelessWidget {
                     Text(
                       'Coming in v2.0',
                       style: AppTypography.textTheme.labelSmall?.copyWith(
-                        color: Colors.amber,
+                        color: AppColors.accentWarning,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

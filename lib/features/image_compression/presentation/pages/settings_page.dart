@@ -49,14 +49,19 @@ class SettingsPage extends StatelessWidget {
                     Container(
                       width: 54,
                       height: 54,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkSurfaceHighlight
+                            : AppColors.lightSurfaceHighlight,
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                        ),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: HugeIcon(
                           icon: HugeIcons.strokeRoundedUser,
-                          color: Colors.white,
+                          color: isDark ? AppColors.darkIcon : AppColors.lightIcon,
                           size: 28,
                         ),
                       ),

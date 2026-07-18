@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
 class RibbonBadge extends StatelessWidget {
@@ -30,7 +31,7 @@ class RibbonBadge extends StatelessWidget {
                 width: 110,
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFF9500),
+                  color: AppColors.accentWarning,
                 ),
                 alignment: Alignment.center,
                 child: Text(
