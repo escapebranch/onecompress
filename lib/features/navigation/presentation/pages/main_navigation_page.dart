@@ -3,9 +3,9 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../image_compression/application/image_compression_dependencies.dart';
 import '../../../image_compression/presentation/controllers/image_compression_controller.dart';
+import '../../../image_compression/presentation/pages/history_page.dart';
 import '../../../image_compression/presentation/pages/home_page.dart';
 import '../../../image_compression/presentation/pages/image_compression_page.dart';
-import '../../../image_compression/presentation/pages/history_page.dart';
 import '../../../image_compression/presentation/pages/settings_page.dart';
 
 class MainNavigationPage extends StatefulWidget {
@@ -20,6 +20,7 @@ class MainNavigationPage extends StatefulWidget {
 class _MainNavigationPageState extends State<MainNavigationPage> {
   int _currentIndex = 0;
   late final ImageCompressionController _controller;
+  late final List<Widget> _pages;
 
   @override
   void initState() {
@@ -31,6 +32,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       saveCompressedImagesUseCase: widget.dependencies.saveCompressedImages,
       shareCompressedImagesUseCase: widget.dependencies.shareCompressedImages,
     );
+
+    _pages = [
+      HomePage(
+        controller: _controller,
+        onOpenCompress: _navigateToCompress,
+        onOpenHistory: () => setState(() => _currentIndex = 1),
+      ),
+      HistoryPage(controller: _controller),
+      const SettingsPage(),
+      const SettingsPage(), // Placeholder for 4th tab
+    ];
   }
 
   @override
@@ -49,23 +61,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = [
-      HomePage(
-        controller: _controller,
-        onOpenCompress: _navigateToCompress,
-        onOpenHistory: () => setState(() => _currentIndex = 1),
-      ),
-      HistoryPage(controller: _controller),
-      const SettingsPage(),
-      const SettingsPage(), // Placeholder for 4th tab
-    ];
-
     return Scaffold(
       extendBody: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(
         index: _currentIndex,
-        children: pages,
+        children: _pages,
       ),
       bottomNavigationBar: SafeArea(
         bottom: true,
@@ -81,9 +82,41 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 }
 
+class _NavItemData {
+  final String title;
+  final List<List<dynamic>> icon;
+  final int badgeCount;
+
+  const _NavItemData({
+    required this.title,
+    required this.icon,
+    this.badgeCount = 0,
+  });
+}
+
 class _FloatingNavigationBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+
+  static const List<_NavItemData> _navItems = [
+    _NavItemData(
+      title: 'Home',
+      icon: HugeIcons.strokeRoundedHome01,
+    ),
+    _NavItemData(
+      title: 'History',
+      icon: HugeIcons.strokeRoundedTime02,
+    ),
+    _NavItemData(
+      title: 'Tools',
+      icon: HugeIcons.strokeRoundedDashboardSquare01,
+    ),
+    _NavItemData(
+      title: 'Profile',
+      icon: HugeIcons.strokeRoundedUser,
+      badgeCount: 3,
+    ),
+  ];
 
   const _FloatingNavigationBar({
     required this.currentIndex,
@@ -92,11 +125,13 @@ class _FloatingNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor = Theme.of(context).colorScheme.surface;
-    final outlineColor = Theme.of(context).colorScheme.outline;
+    final theme = Theme.of(context);
+    final surfaceColor = theme.colorScheme.surface;
+    final outlineColor = theme.colorScheme.outline;
+    final primaryColor = theme.colorScheme.primary;
 
     return Container(
-      height: 72,
+      height: 65,
       decoration: BoxDecoration(
         color: surfaceColor,
         borderRadius: BorderRadius.circular(36),
@@ -113,25 +148,26 @@ class _FloatingNavigationBar extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      clipBehavior: Clip.antiAlias, // Ensures indicator never bleeds outside rounded bar
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final itemWidth = constraints.maxWidth / 4;
+          final itemWidth = constraints.maxWidth / _navItems.length;
           return Stack(
+            clipBehavior: Clip.antiAlias,
             children: [
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutBack, // Spring animation
-                left: currentIndex * itemWidth,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.fastOutSlowIn, // Fast, ultra-responsive acceleration & smooth arrival
+                left: currentIndex * itemWidth + 2,
                 top: 0,
                 bottom: 0,
-                width: itemWidth,
+                width: itemWidth - 4,
                 child: Center(
                   child: Container(
                     height: 52,
-                    width: itemWidth - 16, // Allowing constraints for inner pill
                     decoration: BoxDecoration(
-                      color: surfaceColor.withValues(alpha: 0.8), // Slightly brighter surface overlay logic
+                      color: primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(26),
                       boxShadow: [
                         BoxShadow(
@@ -147,37 +183,20 @@ class _FloatingNavigationBar extends StatelessWidget {
               ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _NavItem(
-                    title: 'Home',
-                    icon: HugeIcons.strokeRoundedHome01,
-                    isSelected: currentIndex == 0,
-                    onTap: () => onTap(0),
-                    width: itemWidth,
-                  ),
-                  _NavItem(
-                    title: 'History',
-                    icon: HugeIcons.strokeRoundedTime02,
-                    isSelected: currentIndex == 1,
-                    onTap: () => onTap(1),
-                    width: itemWidth,
-                  ),
-                  _NavItem(
-                    title: 'Tools',
-                    icon: HugeIcons.strokeRoundedDashboardSquare01,
-                    isSelected: currentIndex == 2,
-                    onTap: () => onTap(2),
-                    width: itemWidth,
-                  ),
-                  _NavItem(
-                    title: 'Profile',
-                    icon: HugeIcons.strokeRoundedUser,
-                    isSelected: currentIndex == 3,
-                    onTap: () => onTap(3),
-                    width: itemWidth,
-                    badgeCount: 3,
-                  ),
-                ],
+                children: List.generate(
+                  _navItems.length,
+                  (index) {
+                    final item = _navItems[index];
+                    return _NavItem(
+                      title: item.title,
+                      icon: item.icon,
+                      isSelected: currentIndex == index,
+                      onTap: () => onTap(index),
+                      width: itemWidth,
+                      badgeCount: item.badgeCount,
+                    );
+                  },
+                ),
               ),
             ],
           );
@@ -220,15 +239,15 @@ class _NavItem extends StatelessWidget {
           children: [
             SizedBox(
               height: 24,
-              width: 32, // to give room for badge
+              width: 32, // Room for badge
               child: Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
                   AnimatedScale(
-                    scale: isSelected ? 1.06 : 1.0,
-                    duration: const Duration(milliseconds: 240),
-                    curve: Curves.easeOutBack,
+                    scale: isSelected ? 1.08 : 1.0,
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
                     child: HugeIcon(
                       icon: icon,
                       size: 24,
@@ -268,7 +287,8 @@ class _NavItem extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 240),
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
@@ -282,3 +302,4 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
+
