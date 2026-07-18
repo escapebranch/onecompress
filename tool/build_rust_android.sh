@@ -3,6 +3,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+export PATH="$HOME/.cargo/bin:$PATH"
 MANIFEST_PATH="$PROJECT_ROOT/rust/image_engine/Cargo.toml"
 ANDROID_DIR="$PROJECT_ROOT/android"
 LOCAL_PROPERTIES="$ANDROID_DIR/local.properties"
@@ -97,8 +98,13 @@ build_target() {
     exit 1
   fi
 
+  export PATH="$LLVM_BIN:$PATH"
   export "CARGO_TARGET_${env_key}_LINKER=$linker"
   export "CARGO_TARGET_${env_key}_AR=$LLVM_BIN/llvm-ar"
+  export "CC_${env_key}=$linker"
+  export "AR_${env_key}=$LLVM_BIN/llvm-ar"
+  export "CC=$linker"
+  export "AR=$LLVM_BIN/llvm-ar"
 
   cargo build --manifest-path "$MANIFEST_PATH" --target "$cargo_target" $CARGO_ARGS
 
