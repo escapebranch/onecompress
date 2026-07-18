@@ -8,7 +8,11 @@ use image::{ColorType, DynamicImage, ImageEncoder, ImageFormat, ImageReader};
 use std::fs;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 use thiserror::Error;
+
+#[allow(unused_imports)]
+use log::{debug, error, info, warn};
 
 // ─── Core Error Type ──────────────────────────────────────────────────────────
 
@@ -79,59 +83,95 @@ const WRITE_BUFFER: usize = 256 * 1024;
 pub fn compress_image_internal(
     request: &InternalCompressionRequest,
 ) -> Result<InternalCompressionResponse, ImageEngineError> {
-    // ① Stat original size without opening (just metadata syscall)
-    let original_bytes = fs::metadata(&request.input_path)?.len();
+    let pipeline_start = Instant::now();
+    let file_name = request.input_path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| request.input_path.to_string_lossy().into_owned());
 
-    // ② Open + detect format via magic bytes (avoids extension-based misdetection)
+    // [1/6] Stat
+    let original_bytes = fs::metadata(&request.input_path)?.len();
+    info!("[compress] START file={} original_size={} bytes", file_name, original_bytes);
+
+    // [2/6] Open + format detection
+    let t = Instant::now();
     let mut input_file = fs::File::open(&request.input_path)?;
     let format = detect_format_with_magic_bytes(&mut input_file, &request.input_path)?;
+    info!("[compress] FORMAT_DETECT file={} detected={:?} elapsed={}us", file_name, format, t.elapsed().as_micros());
 
-    // ③ Seek back to start, wrap in large buffered reader
+    // [3/6] Decode
+    let t = Instant::now();
     input_file.seek(SeekFrom::Start(0))?;
     let buffered_reader = BufReader::with_capacity(READ_BUFFER, input_file);
-
-    // ④ Decode – image crate uses format-native decoders (libjpeg via pure-rust
-    //   zune-jpeg on stable, or mozjpeg quality decoder on nightly). For JPEG,
-    //   the hot path is a SIMD-accelerated Huffman + IDCT.
     let image = ImageReader::with_format(buffered_reader, format)
         .decode()
-        .map_err(|e| ImageEngineError::Decode(e.to_string()))?;
+        .map_err(|e| {
+            error!("[compress] DECODE_FAILED file={} error={}", file_name, e);
+            ImageEngineError::Decode(e.to_string())
+        })?;
+    info!(
+        "[compress] DECODE file={} dims={}x{} color={:?} elapsed={}ms",
+        file_name, image.width(), image.height(), image.color(), t.elapsed().as_millis()
+    );
 
-    // ⑤ Determine target format (resolve Auto now so we don't branch twice)
+    // [4/6] Color space + resize
     let target_format = resolve_target_format(request.output_format, format);
-
-    // ⑥ Pre-convert color space BEFORE resize.
-    //   Resizing in the final color space avoids a second allocation later.
-    //   Strip alpha for JPEG (saves the RGB→RGBA conversion inside the encoder).
     let image = pre_convert_color_space(image, target_format);
 
-    // ⑦ Resize with CatmullRom (bicubic) – significantly better edge sharpness
-    //   than Triangle (bilinear) at nearly the same speed for downscaling.
+    let pre_resize_w = image.width();
+    let pre_resize_h = image.height();
+    let t = Instant::now();
     let image = apply_resize(image, &request.resize_mode);
+    let post_resize_w = image.width();
+    let post_resize_h = image.height();
+    if pre_resize_w != post_resize_w || pre_resize_h != post_resize_h {
+        info!(
+            "[compress] RESIZE file={} from={}x{} to={}x{} mode={:?} elapsed={}ms",
+            file_name, pre_resize_w, pre_resize_h, post_resize_w, post_resize_h,
+            request.resize_mode, t.elapsed().as_millis()
+        );
+    } else {
+        info!("[compress] RESIZE_SKIPPED file={} dims={}x{} (already within bounds)", file_name, pre_resize_w, pre_resize_h);
+    }
 
-    // ⑧ Create output directory and open the write-buffered sink
+    // [5/6] Encode
     if let Some(parent) = request.output_path.parent() {
         fs::create_dir_all(parent)?;
     }
-
     let output_file = fs::File::create(&request.output_path)?;
     let mut buffered_writer = BufWriter::with_capacity(WRITE_BUFFER, output_file);
-
     let final_width = image.width();
     let final_height = image.height();
 
-    // ⑨ Encode with the optimal codec path
+    let t = Instant::now();
     match target_format {
-        InternalOutputFormat::Jpeg => encode_jpeg(image, request.quality, &mut buffered_writer)?,
-        InternalOutputFormat::Png => encode_png(image, request.png_level, &mut buffered_writer)?,
-        InternalOutputFormat::Webp => encode_webp(image, &mut buffered_writer)?,
-        InternalOutputFormat::Auto => encode_jpeg(image, request.quality, &mut buffered_writer)?,
+        InternalOutputFormat::Jpeg => {
+            info!("[compress] ENCODE_JPEG file={} quality={}", file_name, request.quality);
+            encode_jpeg(image, request.quality, &mut buffered_writer)?;
+        }
+        InternalOutputFormat::Png => {
+            info!("[compress] ENCODE_PNG file={} level={}", file_name, request.png_level);
+            encode_png(image, request.png_level, &mut buffered_writer)?;
+        }
+        InternalOutputFormat::Webp => {
+            info!("[compress] ENCODE_WEBP file={}", file_name);
+            encode_webp(image, &mut buffered_writer)?;
+        }
+        InternalOutputFormat::Auto => {
+            info!("[compress] ENCODE_JPEG(auto) file={} quality={}", file_name, request.quality);
+            encode_jpeg(image, request.quality, &mut buffered_writer)?;
+        }
     }
+    let encode_ms = t.elapsed().as_millis();
 
-    // ⑩ Explicit flush ensures all bytes hit the kernel buffer
+    // [6/6] Flush + measure
     buffered_writer.flush()?;
-
     let compressed_bytes = fs::metadata(&request.output_path)?.len();
+    let savings_pct = if original_bytes > 0 {
+        100.0 - (compressed_bytes as f64 / original_bytes as f64 * 100.0)
+    } else {
+        0.0
+    };
 
     let format_str = match target_format {
         InternalOutputFormat::Jpeg => "jpeg",
@@ -140,6 +180,13 @@ pub fn compress_image_internal(
         InternalOutputFormat::Auto => "jpeg",
     }
     .to_string();
+
+    info!(
+        "[compress] DONE file={} format={} dims={}x{} original={}B compressed={}B saved={:.1}% encode={}ms total={}ms",
+        file_name, format_str, final_width, final_height,
+        original_bytes, compressed_bytes, savings_pct,
+        encode_ms, pipeline_start.elapsed().as_millis()
+    );
 
     Ok(InternalCompressionResponse {
         output_path: request.output_path.clone(),

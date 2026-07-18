@@ -1,8 +1,29 @@
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use std::time::Instant;
 use rayon::{prelude::*, ThreadPool, ThreadPoolBuilder};
 use crate::frb_generated::StreamSink;
 use crate::compress_image_internal;
+
+#[allow(unused_imports)]
+use log::{debug, error, info, warn};
+
+// ─── Logger Init ──────────────────────────────────────────────────────────────
+// android_logger routes Rust log:: calls to Android logcat under tag="onecompress".
+// On non-Android targets, the log facade is a no-op unless another backend is set.
+
+static LOGGER_INIT: OnceLock<()> = OnceLock::new();
+
+fn init_logger() {
+    LOGGER_INIT.get_or_init(|| {
+        #[cfg(target_os = "android")]
+        android_logger::init_once(
+            android_logger::Config::default()
+                .with_tag("onecompress")
+                .with_max_level(log::LevelFilter::Debug),
+        );
+    });
+}
 
 // ─── Enums & Public Structs ────────────────────────────────────────────────────
 
@@ -61,16 +82,22 @@ pub struct CompressionTaskProgress {
 static COMPRESSION_POOL: OnceLock<ThreadPool> = OnceLock::new();
 
 fn get_compression_pool() -> &'static ThreadPool {
+    init_logger();
     COMPRESSION_POOL.get_or_init(|| {
         let num_threads = (num_cpus::get().saturating_sub(1)).max(1);
+        info!(
+            "[pool] Initializing Rayon compression pool: threads={} (total_cpus={})",
+            num_threads,
+            num_cpus::get()
+        );
         ThreadPoolBuilder::new()
             .num_threads(num_threads)
-            // 8 MB stack per worker: large image decode is stack-heavy
+            // 8 MB stack per worker: image decode is stack-heavy
             .stack_size(8 * 1024 * 1024)
             .thread_name(|i| format!("onecompress-{i}"))
             .build()
-            .unwrap_or_else(|_| {
-                // Absolute fallback: let rayon use its defaults
+            .unwrap_or_else(|e| {
+                warn!("[pool] Failed to build pinned pool ({}), falling back to defaults", e);
                 ThreadPoolBuilder::new().build().expect("Failed to build fallback pool")
             })
     })
@@ -111,11 +138,20 @@ fn to_internal_request(request: &CompressionRequest) -> crate::InternalCompressi
 
 /// Single-image synchronous compression. Used as fallback and for single images.
 pub fn compress_image(request: CompressionRequest) -> Result<CompressionResponse, String> {
+    init_logger();
     let req_id = request.id.clone();
+    let file_name = std::path::Path::new(&request.input_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| request.input_path.clone());
+    info!("[api] compress_image START id={} file={} quality={} format={:?}", req_id, file_name, request.quality, request.output_format);
+    let t = Instant::now();
     let internal = to_internal_request(&request);
-
-    let response = compress_image_internal(&internal).map_err(|e| e.to_string())?;
-
+    let response = compress_image_internal(&internal).map_err(|e| {
+        error!("[api] compress_image FAILED id={} file={} error={}", req_id, file_name, e);
+        e.to_string()
+    })?;
+    info!("[api] compress_image DONE id={} file={} elapsed={}ms", req_id, file_name, t.elapsed().as_millis());
     Ok(CompressionResponse {
         id: req_id,
         output_path: response.output_path.to_string_lossy().into_owned(),
@@ -142,24 +178,37 @@ pub fn compress_images_batch(
 }
 
 /// Streaming batch compression using the singleton Rayon thread pool.
-///
-/// Results are dispatched to the Dart sink IMMEDIATELY as each image finishes,
-/// in ANY order (unordered). This maximizes throughput on multi-core devices:
-/// a 5-second large image won't block reporting 10 fast small images behind it.
-///
-/// The Dart side correlates results by `id`.
 pub fn compress_images_stream(
     requests: Vec<CompressionRequest>,
     sink: StreamSink<CompressionTaskProgress>,
 ) {
+    let total = requests.len();
     let pool = get_compression_pool();
+    info!("[api] compress_images_stream START total_images={} pool_threads={}", total, pool.current_num_threads());
+    let batch_start = Instant::now();
+
     pool.install(|| {
         requests.into_par_iter().for_each(|req| {
             let req_id = req.id.clone();
+            let file_name = std::path::Path::new(&req.input_path)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| req.input_path.clone());
             let internal = to_internal_request(&req);
+            let t = Instant::now();
 
             match compress_image_internal(&internal) {
                 Ok(resp) => {
+                    let elapsed = t.elapsed().as_millis();
+                    let savings_pct = if resp.original_bytes > 0 {
+                        100.0 - (resp.compressed_bytes as f64 / resp.original_bytes as f64 * 100.0)
+                    } else {
+                        0.0
+                    };
+                    info!(
+                        "[api] stream_item OK id={} file={} saved={:.1}% elapsed={}ms",
+                        req_id, file_name, savings_pct, elapsed
+                    );
                     let _ = sink.add(CompressionTaskProgress {
                         id: req_id.clone(),
                         success: true,
@@ -176,6 +225,10 @@ pub fn compress_images_stream(
                     });
                 }
                 Err(err) => {
+                    error!(
+                        "[api] stream_item FAILED id={} file={} elapsed={}ms error={}",
+                        req_id, file_name, t.elapsed().as_millis(), err
+                    );
                     let _ = sink.add(CompressionTaskProgress {
                         id: req_id,
                         success: false,
@@ -186,6 +239,11 @@ pub fn compress_images_stream(
             }
         });
     });
+
+    info!(
+        "[api] compress_images_stream DONE total_images={} total_elapsed={}ms",
+        total, batch_start.elapsed().as_millis()
+    );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

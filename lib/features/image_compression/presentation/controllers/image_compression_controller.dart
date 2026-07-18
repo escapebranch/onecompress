@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/extensions/iterable_extensions.dart';
+import '../../../../core/utils/app_log.dart';
 import '../../domain/entities/compressed_image.dart';
 import '../../domain/entities/compression_preset.dart';
 import '../../domain/entities/selected_image.dart';
@@ -153,6 +154,7 @@ class ImageCompressionController extends ChangeNotifier {
   // ─── Pick Images ───────────────────────────────────────────────────────────
 
   Future<void> pickImages() async {
+    AppLog.info('Controller', 'pickImages() called');
     _setError(null);
     try {
       final images = await pickImagesUseCase();
@@ -162,10 +164,13 @@ class ImageCompressionController extends ChangeNotifier {
       _statusMessage = images.isEmpty
           ? 'No images selected yet.'
           : '${images.length} image${images.length == 1 ? '' : 's'} ready to compress.';
+      AppLog.info('Controller', 'pickImages() done — selected=${images.length} images');
       notifyListeners();
     } on AppFailure catch (failure) {
+      AppLog.error('Controller', 'pickImages() AppFailure: ${failure.message}');
       _setError(failure.message);
     } catch (error) {
+      AppLog.error('Controller', 'pickImages() unexpected error', error: error);
       _setError('Unable to pick images: $error');
     }
   }
@@ -173,37 +178,49 @@ class ImageCompressionController extends ChangeNotifier {
   // ─── Compress ─────────────────────────────────────────────────────────────
 
   Future<void> compress() async {
-    if (_selectedImages.isEmpty || _isCompressing) return;
+    if (_selectedImages.isEmpty || _isCompressing) {
+      AppLog.warn('Controller', 'compress() called but images=${_selectedImages.length} isCompressing=$_isCompressing — skipped');
+      return;
+    }
+
+    AppLog.info(
+      'Controller',
+      'compress() START images=${_selectedImages.length} '
+      'preset=${_preset.id} quality=${_preset.quality} '
+      'pngLevel=${_preset.pngLevel} targetFormat=${_preset.targetFormat} '
+      'resizeMode=${_preset.resizeMode}',
+    );
 
     _isCompressing = true;
     _compressedImages.clear();
     _resetTelemetry();
     _totalCount = _selectedImages.length;
     _setError(null, notify: false);
-    _statusMessage = 'Firing up ${_selectedImages.length} image${_selectedImages.length == 1 ? '' : 's'} on Rayon engine…';
+    _statusMessage = 'Firing up ${_selectedImages.length} image${_selectedImages.length == 1 ? '' : 's'} on Rayon engine...';
     _compressionStartTime = DateTime.now();
     notifyListeners();
 
     final stream = compressImagesUseCase(images: _selectedImages, preset: _preset);
+    AppLog.info('Controller', 'compress() stream obtained — subscribing');
 
-    // Throttle gate: only notify listeners at ~60 FPS to avoid flooding the UI thread.
     DateTime? lastNotify;
+    int notifyCount = 0;
+    int suppressedCount = 0;
 
     _compressionSubscription = stream.listen(
       (update) {
         _completedCount = update.completed;
 
         if (update.result != null) {
-          // O(1) append — no list spread allocation.
           _compressedImages.add(update.result!);
           _processedOriginalBytes += update.result!.originalBytes;
         }
 
         if (update.failure != null && _errorMessage == null) {
           _errorMessage = update.failure!.message;
+          AppLog.warn('Controller', 'stream event failure for ${update.currentImageName}: ${update.failure!.message}');
         }
 
-        // Update telemetry
         final now = DateTime.now();
         if (_compressionStartTime != null) {
           _elapsedMilliseconds = now.difference(_compressionStartTime!).inMilliseconds;
@@ -214,16 +231,30 @@ class ImageCompressionController extends ChangeNotifier {
         }
 
         _statusMessage = update.failure == null
-            ? '⚡ ${update.currentImageName}'
+            ? '${update.currentImageName}'
             : 'Skipped ${update.currentImageName}: ${update.failure!.message}';
 
         // Throttle: only push to UI at ~60fps (16ms gate)
         if (lastNotify == null || now.difference(lastNotify!).inMilliseconds >= 16) {
           lastNotify = now;
+          notifyCount++;
           notifyListeners();
+          AppLog.debug(
+            'Controller',
+            'stream event NOTIFY #$notifyCount '
+            'completed=$_completedCount/$_totalCount '
+            'progress=${(progress * 100).toStringAsFixed(1)}% '
+            'speed=${_processingSpeedMBps.toStringAsFixed(1)}MB/s '
+            'elapsed=${_elapsedMilliseconds}ms '
+            'suppressed_since_last=$suppressedCount',
+          );
+          suppressedCount = 0;
+        } else {
+          suppressedCount++;
         }
       },
-      onError: (error) {
+      onError: (Object error, StackTrace st) {
+        AppLog.error('Controller', 'compress() stream onError', error: error, stackTrace: st);
         _setError('Engine error: $error');
         _isCompressing = false;
         notifyListeners();
@@ -248,6 +279,7 @@ class ImageCompressionController extends ChangeNotifier {
   // ─── Cancel ────────────────────────────────────────────────────────────────
 
   void cancelCompression() {
+    AppLog.info('Controller', 'cancelCompression() called isCompressing=$_isCompressing');
     _compressionSubscription?.cancel();
     _compressionSubscription = null;
     if (_isCompressing) {
