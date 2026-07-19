@@ -10,6 +10,7 @@ import '../controllers/image_compression_controller.dart';
 import '../widgets/format_chip_selector.dart';
 import '../widgets/studio_bottom_bar.dart';
 import '../widgets/studio_gallery_view.dart';
+import '../widgets/image_preview_modal.dart';
 
 class ImageCompressionPage extends StatefulWidget {
   const ImageCompressionPage({required this.controller, super.key});
@@ -172,6 +173,6 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
   }
 
   void _handleImageItemTap(BuildContext context, SelectedImage item) {
-    // Reserved for Phase 3: Detailed Image Preview & Individual Re-compress Modal
+    ImagePreviewModal.show(context, item, widget.controller);
   }
 }

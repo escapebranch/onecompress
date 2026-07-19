@@ -9,6 +9,7 @@ import '../../../../core/widgets/glass_card.dart';
 import '../../domain/entities/selected_image.dart';
 import '../controllers/image_compression_controller.dart';
 import 'compression_customization_bottom_sheet.dart';
+import 'image_preview_modal.dart';
 
 class ImageBatchGalleryCard extends StatelessWidget {
   const ImageBatchGalleryCard({
@@ -176,14 +177,16 @@ class ImageBatchGalleryCard extends StatelessWidget {
                   final mb = (item.originalBytes / (1024 * 1024)).toStringAsFixed(1);
                   final formatName = item.format.badgeName;
 
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                  return GestureDetector(
+                    onTap: () => ImagePreviewModal.show(context, item, controller),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                        ),
                       ),
-                    ),
-                    child: ClipRRect(
+                      child: ClipRRect(
                       borderRadius: BorderRadius.circular(13),
                       child: Stack(
                         fit: StackFit.expand,
@@ -299,7 +302,7 @@ class ImageBatchGalleryCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                  );
+                  ));
                 },
               );
             },
