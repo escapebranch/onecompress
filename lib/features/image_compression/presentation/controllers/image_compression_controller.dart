@@ -301,6 +301,47 @@ class ImageCompressionController extends ChangeNotifier {
     );
   }
 
+  Future<void> compressSingleImage(SelectedImage image, CompressionPreset customPreset) async {
+    if (_isCompressing) {
+      AppLog.warn('Controller', 'compressSingleImage() called but isCompressing=true — skipped');
+      return;
+    }
+
+    AppLog.info('Controller', 'compressSingleImage() START for ${image.fileName}');
+    _isCompressing = true;
+    _setError(null, notify: false);
+    _statusMessage = 'Compressing ${image.fileName}...';
+    notifyListeners();
+
+    // Remove existing result if any
+    _compressedImages.removeWhere((i) => i.source.path == image.path);
+
+    final stream = compressImagesUseCase(images: [image], preset: customPreset);
+    
+    _compressionSubscription = stream.listen(
+      (update) {
+        if (update.result != null) {
+          _compressedImages.add(update.result!);
+        }
+        if (update.failure != null) {
+          _errorMessage = update.failure!.message;
+        }
+        notifyListeners();
+      },
+      onError: (Object error, StackTrace st) {
+        AppLog.error('Controller', 'compressSingleImage() stream onError', error: error, stackTrace: st);
+        _setError('Engine error: $error');
+        _isCompressing = false;
+        notifyListeners();
+      },
+      onDone: () {
+        _isCompressing = false;
+        _statusMessage = 'Finished compressing ${image.fileName}';
+        notifyListeners();
+      },
+    );
+  }
+
   // ─── Cancel ────────────────────────────────────────────────────────────────
 
   void cancelCompression() {
