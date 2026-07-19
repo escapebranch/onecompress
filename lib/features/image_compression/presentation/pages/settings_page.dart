@@ -21,7 +21,7 @@ class SettingsPage extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Profile & Settings',
+          'Settings',
           style: AppTypography.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             color: isDark ? Colors.white : AppColors.lightTextPrimary,
@@ -41,7 +41,7 @@ class SettingsPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Profile Header Card
+              // Engine Status Header Card
               GlassCard(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Row(
@@ -60,7 +60,7 @@ class SettingsPage extends StatelessWidget {
                       ),
                       child: Center(
                         child: HugeIcon(
-                          icon: HugeIcons.strokeRoundedUser,
+                          icon: HugeIcons.strokeRoundedCpu,
                           color: isDark ? AppColors.darkIcon : AppColors.lightIcon,
                           size: 28,
                         ),
@@ -72,7 +72,7 @@ class SettingsPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Pro License',
+                            'Local Engine',
                             style: AppTypography.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: isDark ? Colors.white : AppColors.lightTextPrimary,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../image_compression/application/image_compression_dependencies.dart';
 import '../../../image_compression/presentation/controllers/image_compression_controller.dart';
 import '../../../image_compression/presentation/pages/history_page.dart';
@@ -43,7 +42,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       ),
       HistoryPage(controller: _controller),
       const SettingsPage(),
-      const SettingsPage(), // Placeholder for 4th tab
     ];
   }
 
@@ -87,12 +85,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 class _NavItemData {
   final String title;
   final List<List<dynamic>> icon;
-  final int badgeCount;
 
   const _NavItemData({
     required this.title,
     required this.icon,
-    this.badgeCount = 0,
   });
 }
 
@@ -110,13 +106,8 @@ class _FloatingNavigationBar extends StatelessWidget {
       icon: HugeIcons.strokeRoundedTime02,
     ),
     _NavItemData(
-      title: 'Tools',
-      icon: HugeIcons.strokeRoundedDashboardSquare01,
-    ),
-    _NavItemData(
-      title: 'Profile',
-      icon: HugeIcons.strokeRoundedUser,
-      badgeCount: 3,
+      title: 'Settings',
+      icon: HugeIcons.strokeRoundedSettings02,
     ),
   ];
 
@@ -190,7 +181,6 @@ class _FloatingNavigationBar extends StatelessWidget {
                       isSelected: currentIndex == index,
                       onTap: () => onTap(index),
                       width: itemWidth,
-                      badgeCount: item.badgeCount,
                     );
                   },
                 ),
@@ -209,7 +199,6 @@ class _NavItem extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final double width;
-  final int badgeCount;
 
   const _NavItem({
     required this.title,
@@ -217,7 +206,6 @@ class _NavItem extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     required this.width,
-    this.badgeCount = 0,
   });
 
   @override
@@ -236,50 +224,16 @@ class _NavItem extends StatelessWidget {
           children: [
             SizedBox(
               height: 24,
-              width: 32, // Room for badge
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  AnimatedScale(
-                    scale: isSelected ? 1.08 : 1.0,
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOutCubic,
-                    child: HugeIcon(
-                      icon: icon,
-                      size: 24,
-                      color: isSelected ? activeColor : inactiveColor,
-                    ),
-                  ),
-                  if (badgeCount > 0)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentDelete,
-                          shape: BoxShape.rectangle,
-                          borderRadius: const BorderRadius.all(Radius.circular(9)),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          badgeCount > 99 ? '99+' : badgeCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            height: 1,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
+              width: 24,
+              child: AnimatedScale(
+                scale: isSelected ? 1.08 : 1.0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                child: HugeIcon(
+                  icon: icon,
+                  size: 24,
+                  color: isSelected ? activeColor : inactiveColor,
+                ),
               ),
             ),
             const SizedBox(height: 4),
