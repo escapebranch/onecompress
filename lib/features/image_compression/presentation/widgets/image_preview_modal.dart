@@ -237,10 +237,10 @@ class _ImagePreviewModalState extends State<ImagePreviewModal> {
                                       overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
                                     ),
                                     child: Slider(
-                                      value: _localPreset.quality.toDouble(),
-                                      min: 10,
+                                      value: _localPreset.quality.toDouble().clamp(1.0, 100.0),
+                                      min: 1,
                                       max: 100,
-                                      divisions: 90,
+                                      divisions: 99,
                                       onChanged: (value) {
                                         setState(() {
                                           _localPreset = _localPreset.copyWith(
