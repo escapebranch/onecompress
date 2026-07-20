@@ -1,4 +1,7 @@
+import '../../history/domain/repositories/i_compression_history_repository.dart';
 import '../data/datasources/file_picker_data_source.dart';
+
+
 import '../data/datasources/image_engine_data_source_factory.dart';
 import '../data/datasources/share_data_source.dart';
 import '../data/repositories/image_compression_repository_impl.dart';
@@ -17,6 +20,7 @@ class ImageCompressionDependencies {
     required this.compressImages,
     required this.saveCompressedImages,
     required this.shareCompressedImages,
+    required this.historyRepository,
   });
 
   final PickImagesUseCase pickImages;
@@ -25,8 +29,11 @@ class ImageCompressionDependencies {
   final CompressImagesUseCase compressImages;
   final SaveCompressedImagesUseCase saveCompressedImages;
   final ShareCompressedImagesUseCase shareCompressedImages;
+  final ICompressionHistoryRepository historyRepository;
 
-  factory ImageCompressionDependencies.create() {
+  factory ImageCompressionDependencies.create({
+    required ICompressionHistoryRepository historyRepository,
+  }) {
     final repository = ImageCompressionRepositoryImpl(
       filePickerDataSource: FilePickerDataSource(),
       imageEngineDataSource: createImageEngineDataSource(),
@@ -40,6 +47,8 @@ class ImageCompressionDependencies {
       compressImages: CompressImagesUseCase(repository),
       saveCompressedImages: SaveCompressedImagesUseCase(repository),
       shareCompressedImages: ShareCompressedImagesUseCase(repository),
+      historyRepository: historyRepository,
     );
   }
 }
+

@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_windows
   gal
+  objectbox_flutter_libs
   share_plus
   url_launcher_windows
 )
