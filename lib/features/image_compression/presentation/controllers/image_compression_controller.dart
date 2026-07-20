@@ -14,6 +14,9 @@ import '../../domain/usecases/pick_export_directory_use_case.dart';
 import '../../domain/usecases/pick_images_use_case.dart';
 import '../../domain/usecases/save_compressed_images_use_case.dart';
 import '../../domain/usecases/share_compressed_images_use_case.dart';
+import '../../../history/domain/entities/compression_history_item.dart';
+import '../../../history/domain/repositories/i_compression_history_repository.dart';
+
 
 class ImageCompressionController extends ChangeNotifier {
   ImageCompressionController({
@@ -23,6 +26,7 @@ class ImageCompressionController extends ChangeNotifier {
     required this.compressImagesUseCase,
     required this.saveCompressedImagesUseCase,
     required this.shareCompressedImagesUseCase,
+    required this.historyRepository,
   });
 
   final PickImagesUseCase pickImagesUseCase;
@@ -31,6 +35,8 @@ class ImageCompressionController extends ChangeNotifier {
   final CompressImagesUseCase compressImagesUseCase;
   final SaveCompressedImagesUseCase saveCompressedImagesUseCase;
   final ShareCompressedImagesUseCase shareCompressedImagesUseCase;
+  final ICompressionHistoryRepository historyRepository;
+
 
   // ─── State ─────────────────────────────────────────────────────────────────
 
@@ -239,6 +245,18 @@ class ImageCompressionController extends ChangeNotifier {
         if (update.result != null) {
           _compressedImages.add(update.result!);
           _processedOriginalBytes += update.result!.originalBytes;
+          
+          final item = CompressionHistoryItem(
+            id: 0,
+            originalPath: update.result!.source.path,
+            outputPath: update.result!.outputPath,
+            outputFileName: update.result!.outputFileName,
+            originalBytes: update.result!.originalBytes,
+            compressedBytes: update.result!.compressedBytes,
+            timestamp: DateTime.now(),
+            format: update.result!.source.format.name,
+          );
+          historyRepository.saveCompressionHistory(item);
         }
 
         if (update.failure != null && _errorMessage == null) {
@@ -322,6 +340,17 @@ class ImageCompressionController extends ChangeNotifier {
       (update) {
         if (update.result != null) {
           _compressedImages.add(update.result!);
+          final item = CompressionHistoryItem(
+            id: 0,
+            originalPath: update.result!.source.path,
+            outputPath: update.result!.outputPath,
+            outputFileName: update.result!.outputFileName,
+            originalBytes: update.result!.originalBytes,
+            compressedBytes: update.result!.compressedBytes,
+            timestamp: DateTime.now(),
+            format: update.result!.source.format.name,
+          );
+          historyRepository.saveCompressionHistory(item);
         }
         if (update.failure != null) {
           _errorMessage = update.failure!.message;
