@@ -8,6 +8,9 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../controllers/image_compression_controller.dart';
 import '../widgets/ribbon_badge.dart';
+import '../../../history/domain/entities/compression_history_item.dart';
+import '../widgets/history_item_card.dart';
+
 
 class HomePage extends StatelessWidget {
   const HomePage({
@@ -54,10 +57,40 @@ class HomePage extends StatelessWidget {
               // 3. RECENTS SECTION
               _buildRecentsHeader(context, isDark).animate().fadeIn(delay: 200.ms, duration: 400.ms),
               const SizedBox(height: AppSpacing.sm),
-              _buildRecentsEmptyState(context, isDark).animate().fadeIn(delay: 250.ms, duration: 400.ms).scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1)),
+              StreamBuilder<List<CompressionHistoryItem>>(
+                stream: controller.historyRepository.watchHistory(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final history = snapshot.data ?? [];
+                  if (history.isEmpty) {
+                    return _buildRecentsEmptyState(context, isDark)
+                        .animate()
+                        .fadeIn(delay: 250.ms, duration: 400.ms)
+                        .scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1));
+                  }
+
+                  final recentItems = history.take(3).toList();
+                  
+                  return Column(
+                    children: recentItems.map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: HistoryItemCard(item: item)
+                            .animate()
+                            .fadeIn(duration: 350.ms)
+                            .slideY(begin: 0.1, end: 0),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
             ],
           ),
         ),
+
       ),
     );
   }

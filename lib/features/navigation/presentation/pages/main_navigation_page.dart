@@ -32,7 +32,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       compressImagesUseCase: widget.dependencies.compressImages,
       saveCompressedImagesUseCase: widget.dependencies.saveCompressedImages,
       shareCompressedImagesUseCase: widget.dependencies.shareCompressedImages,
+      historyRepository: widget.dependencies.historyRepository,
     );
+
 
     _pages = [
       HomePage(
