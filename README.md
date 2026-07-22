@@ -1,69 +1,132 @@
-# OneCompress
+![OneCompress Banner](docs/banner.png)
 
-OneCompress is a high performance cross-platform media compression application built with Flutter for the presentation layer and Rust for native FFI compression execution.
+OneCompress is a high-performance, local-first media compression app built with Flutter and Rust. It pairs a fluid Material 3 Flutter UI with a multi-threaded Rust core to execute heavy image processing operations completely on-device.
 
-## Features
+## Key Capabilities
 
-- High performance batch image compression for JPEG, PNG, and WebP formats
-- Interactive before and after image comparison preview slider
-- Granular single image tuning and re-compression
-- Custom presets for quality, format conversion, and dimension resizing
-- Background multi-threaded isolate execution via Rust FFI
-- Graceful automatic fallback to Dart raster engine if native binaries are absent
-- Direct gallery integration for saving compressed artifacts
+- **100% Offline & Private**: All image operations execute locally. No cloud servers, no network requests, no user tracking.
+- **High-Throughput Native Core**: Rust engine connected via `flutter_rust_bridge` (v2) for low-overhead multi-threaded compression.
+- **Resilient Fallback System**: Automatic detection of native libraries. If native binaries are absent, the application gracefully routes image tasks to an internal Dart raster fallback without interrupting the user.
+- **Interactive Visual Inspector**: Split-screen before/after comparison slider with real-time zoom and size delta metrics.
+- **Batch Processing**: Parallel compression for JPEG, PNG, and WebP formats with custom presets and dimension controls.
 
-## Architecture
+## System Architecture
 
-The project follows Clean Architecture principles, isolating UI, domain business logic, and data sources:
+The project follows Clean Architecture principles, establishing a clear separation between application state, domain logic, data sources, and native FFI components:
 
 ```text
 lib/
-  app/                        App configuration and dependency root
-  core/                       Theme tokens, shared utilities, core components
-  features/
-    image_compression/
-      application/            Dependency injection and binding
-      data/                   File picker, FFI native engine, gallery saver
-      domain/                 Entities, use cases, repository interfaces
-      presentation/           Controllers, screens, interactive widgets
+├── app/                        Application bootstrap and dependency injection root
+├── core/                       Design system, theme tokens, shared widgets, utilities
+└── features/
+    └── image_compression/
+        ├── domain/             Core business logic, entities, repository interfaces
+        ├── data/               FFI Rust engine bindings, fallback worker, gallery saver
+        └── presentation/       UI pages, image comparison slider, preset pickers
 
 rust/
-  image_engine/               High performance Rust compression engine
+└── image_engine/               Native Rust compression engine and memory management
 ```
 
-## Native Engine Bridge
+## Quick Start
 
-The Rust core is integrated using flutter_rust_bridge and native FFI:
+The fastest way to launch the application on any development machine is using the primary Make target:
 
-- Android: Packaged native libraries per ABI (.so) in jniLibs
-- iOS and macOS: Statically linked native library (.a)
-- Desktop (Linux and Windows): Dynamically linked engine library (.so / .dll)
+```bash
+make run
+```
 
-If native libraries are unavailable, the application seamlessly falls back to a pure Dart implementation without interrupting the user workflow.
+This single command automatically exports local toolchain paths, compiles the native Rust engine for your active environment, and boots the Flutter app in debug mode.
 
-## Getting Started
+## Launching Across Platform Environments
 
-1. Fetch Flutter dependencies:
+### Linux & macOS
+
+1. Fetch Dart dependencies:
    ```bash
    flutter pub get
    ```
 
-2. Build local Rust engine for desktop development:
+2. Run the automated launcher:
    ```bash
-   make rust-engine-debug
+   make run
    ```
 
-3. Run the application:
-   ```bash
-   flutter run
+Alternatively, if you prefer running Flutter directly for desktop:
+```bash
+make rust-engine-debug
+flutter run -d linux # or macos
+```
+
+### Windows
+
+If running inside Git Bash or WSL:
+```bash
+make run
+```
+
+If running inside standard Windows PowerShell:
+1. Build the Rust native library:
+   ```powershell
+   cargo build --manifest-path rust/image_engine/Cargo.toml
+   ```
+2. Launch Flutter:
+   ```powershell
+   flutter run -d windows
    ```
 
-## Native Build Prerequisites
+### Android Device or Emulator
 
-To compile native Rust binaries for target platforms, ensure required target toolchains are installed:
+Ensure your Android device or emulator is connected (`flutter devices`):
 
 ```bash
-rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
-rustup target add aarch64-apple-darwin x86_64-apple-darwin
+make run
 ```
+
+`make run` automatically invokes `./tool/build_rust_android.sh debug` to compile native `.so` binaries for all required Android ABIs (`arm64-v8a`, `armeabi-v7a`, `x86_64`) before launching on the target device.
+
+### iOS & macOS Native Builds
+
+For iOS simulators or physical iPhones, compile the Apple static targets first:
+
+```bash
+./tool/build_rust_apple.sh debug
+flutter run -d ios
+```
+
+## Important Development Notes
+
+### Native Toolchain Setup
+
+To cross-compile the Rust engine for mobile targets, install the necessary target toolchains via `rustup`:
+
+```bash
+# Android target ABIs
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+
+# Apple targets
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios aarch64-apple-darwin x86_64-apple-darwin
+```
+
+### Android NDK Environment Variable
+
+When compiling Android native libraries, ensure your NDK path is set:
+
+```bash
+export ANDROID_NDK_HOME="$HOME/Android/Sdk/ndk/25.2.9519653"
+```
+
+### Seamless Dart Fallback
+
+If you run `flutter run` directly without building the Rust native libraries, OneCompress will detect the missing native symbol bindings at runtime and log an informational message. It then transparently redirects all image processing tasks to the Dart raster engine (`image` package). Development work on UI or application logic can continue without needing a working Rust cross-compilation toolchain on hand.
+
+## Makefile Command Reference
+
+| Command | Description |
+|---|---|
+| `make run` | Primary dev launcher. Compiles native engine and starts Flutter. |
+| `make rust-engine-debug` | Builds Rust engine debug binary for host desktop platform. |
+| `make rust-engine-release` | Builds Rust engine optimized release binary. |
+| `make android-rust-debug` | Cross-compiles native `.so` libraries for Android targets. |
+| `make frb-codegen` | Regenerates FFI bridge bindings using `flutter_rust_bridge_codegen`. |
+| `make flutter-check` | Runs static analysis (`flutter analyze`) and unit test suite (`flutter test`). |
