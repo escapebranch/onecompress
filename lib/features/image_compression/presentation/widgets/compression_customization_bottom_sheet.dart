@@ -43,6 +43,7 @@ class CompressionCustomizationBottomSheet extends StatefulWidget {
 class _CompressionCustomizationBottomSheetState
     extends State<CompressionCustomizationBottomSheet> {
   int _modeIndex = 0; // 0: Target File Size, 1: Quality Percentage
+  int _scopeIndex = 0; // 0: All Batch Items, 1: Selected File Only
   bool _isMB = true;
   double _targetValue = 1.0;
   late TextEditingController _targetSizeController;
@@ -64,7 +65,7 @@ class _CompressionCustomizationBottomSheetState
         _targetValue = (bytes / 1024).clamp(10.0, 10240.0);
       }
     } else {
-      _modeIndex = 0; // Default to Target File Size mode as requested by user
+      _modeIndex = 0;
       if (originalBytes > 0) {
         if (originalBytes >= 1024 * 1024) {
           _isMB = true;
@@ -127,10 +128,8 @@ class _CompressionCustomizationBottomSheetState
     setState(() {
       _isMB = isMB;
       if (_isMB) {
-        // KB -> MB
         _targetValue = (_targetValue / 1024).clamp(0.1, 100.0);
       } else {
-        // MB -> KB
         _targetValue = (_targetValue * 1024).clamp(10.0, 10240.0);
       }
       _targetSizeController.text = _targetValue % 1 == 0
@@ -152,59 +151,65 @@ class _CompressionCustomizationBottomSheetState
         final preset = controller.preset;
 
         return ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
             child: Container(
-              height: MediaQuery.of(context).size.height * 0.82,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom,
+              ),
               decoration: BoxDecoration(
                 color: isDark
-                    ? AppColors.darkSurface.withValues(alpha: 0.90)
-                    : Colors.white.withValues(alpha: 0.96),
+                    ? AppColors.darkSurface.withValues(alpha: 0.95)
+                    : Colors.white.withValues(alpha: 0.98),
                 borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(32)),
+                    const BorderRadius.vertical(top: Radius.circular(28)),
                 border: Border(
                   top: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: isDark ? Colors.white12 : Colors.black12,
                     width: 1,
                   ),
                 ),
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildHeader(context, isDark, controller),
 
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 1. MODE SELECTOR TABS
-                          _buildModeSelector(isDark),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 0. BATCH vs SELECTED FILE SCOPE SELECTOR
+                        _buildScopeSelector(isDark, controller),
 
-                          const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(height: AppSpacing.sm),
 
-                          // 2. MODE BODY
-                          if (_modeIndex == 0)
-                            _buildTargetSizeSection(context, controller, isDark)
-                          else
-                            _buildQualitySection(context, controller, preset, isDark),
+                        // 1. MODE SELECTOR TABS
+                        _buildModeSelector(isDark),
 
-                          const SizedBox(height: AppSpacing.xl),
+                        const SizedBox(height: AppSpacing.md),
 
-                          // 3. FORMAT SELECTOR
-                          _buildSectionTitle('Target Format', isDark),
-                          const SizedBox(height: AppSpacing.sm),
-                          _buildFormatSection(controller, preset, isDark),
+                        // 2. MODE BODY
+                        if (_modeIndex == 0)
+                          _buildTargetSizeSection(context, controller, isDark)
+                        else
+                          _buildQualitySection(context, controller, preset, isDark),
 
-                          const SizedBox(height: AppSpacing.xxl),
-                        ],
-                      ),
+                        const SizedBox(height: AppSpacing.md),
+
+                        // 3. FORMAT SELECTOR
+                        _buildSectionTitle('Target Format', isDark),
+                        const SizedBox(height: AppSpacing.xs),
+                        _buildFormatSection(controller, preset, isDark),
+
+                        const SizedBox(height: AppSpacing.md),
+                      ],
                     ),
                   ),
 
@@ -389,6 +394,71 @@ class _CompressionCustomizationBottomSheetState
     );
   }
 
+  Widget _buildScopeSelector(bool isDark, ImageCompressionController controller) {
+    final count = controller.selectedImages.length;
+    final activeBg = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final activeText = isDark ? Colors.black : Colors.white;
+    final inactiveText = isDark ? Colors.white70 : Colors.black87;
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.black.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _scopeIndex = 0),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _scopeIndex == 0 ? activeBg : Colors.transparent,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Text(
+                  'All Files ($count)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _scopeIndex == 0 ? activeText : inactiveText,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _scopeIndex = 1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _scopeIndex == 1 ? activeBg : Colors.transparent,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Text(
+                  'Selected Only',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _scopeIndex == 1 ? activeText : inactiveText,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTargetSizeSection(
     BuildContext context,
     ImageCompressionController controller,
@@ -408,7 +478,7 @@ class _CompressionCustomizationBottomSheetState
         color: isDark
             ? Colors.white.withValues(alpha: 0.04)
             : Colors.black.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark ? Colors.white10 : Colors.black12,
         ),
@@ -445,28 +515,28 @@ class _CompressionCustomizationBottomSheetState
             ],
           ),
 
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
 
-          // Value Input & Display Box
+          // Value Input & Display Box (Seamless Theme Fill)
           Row(
             children: [
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.white.withValues(alpha: 0.06)
+                        ? Colors.white.withValues(alpha: 0.08)
                         : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isDark ? Colors.white24 : Colors.black26,
+                      color: isDark ? Colors.white24 : Colors.black.withValues(alpha: 0.12),
                     ),
                   ),
                   child: TextField(
                     controller: _targetSizeController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    style: AppTypography.textTheme.headlineMedium?.copyWith(
+                    style: AppTypography.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: isDark ? Colors.white : AppColors.lightTextPrimary,
                     ),
@@ -475,9 +545,9 @@ class _CompressionCustomizationBottomSheetState
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
                       suffixText: _isMB ? 'MB' : 'KB',
-                      suffixStyle: AppTypography.textTheme.titleMedium?.copyWith(
+                      suffixStyle: AppTypography.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white60 : Colors.black54,
+                        color: isDark ? Colors.white70 : AppColors.lightTextSecondary,
                       ),
                     ),
                     onSubmitted: _onTargetTextSubmitted,
