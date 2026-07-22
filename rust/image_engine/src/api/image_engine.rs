@@ -52,6 +52,7 @@ pub struct CompressionRequest {
     pub png_level: u8,
     pub resize_mode: ResizeMode,
     pub output_format: OutputFormat,
+    pub target_size_bytes: Option<u64>,
 }
 
 /// NOTE: field order MUST match frb_generated.rs SseDecode/SseEncode exactly.
@@ -131,6 +132,7 @@ fn to_internal_request(request: &CompressionRequest) -> crate::InternalCompressi
             OutputFormat::Webp => crate::InternalOutputFormat::Webp,
             OutputFormat::Auto => crate::InternalOutputFormat::Auto,
         },
+        target_size_bytes: request.target_size_bytes,
     }
 }
 

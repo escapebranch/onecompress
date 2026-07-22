@@ -59,6 +59,7 @@ pub struct InternalCompressionRequest {
     pub png_level: u8,
     pub resize_mode: InternalResizeMode,
     pub output_format: InternalOutputFormat,
+    pub target_size_bytes: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -83,20 +84,29 @@ pub fn compress_image_internal(
     request: &InternalCompressionRequest,
 ) -> Result<InternalCompressionResponse, ImageEngineError> {
     let pipeline_start = Instant::now();
-    let file_name = request.input_path
+    let file_name = request
+        .input_path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| request.input_path.to_string_lossy().into_owned());
 
     // [1/6] Stat
     let original_bytes = fs::metadata(&request.input_path)?.len();
-    info!("[compress] START file={} original_size={} bytes", file_name, original_bytes);
+    info!(
+        "[compress] START file={} original_size={} bytes",
+        file_name, original_bytes
+    );
 
     // [2/6] Open + format detection
     let t = Instant::now();
     let mut input_file = fs::File::open(&request.input_path)?;
     let format = detect_format_with_magic_bytes(&mut input_file, &request.input_path)?;
-    info!("[compress] FORMAT_DETECT file={} detected={:?} elapsed={}us", file_name, format, t.elapsed().as_micros());
+    info!(
+        "[compress] FORMAT_DETECT file={} detected={:?} elapsed={}us",
+        file_name,
+        format,
+        t.elapsed().as_micros()
+    );
 
     // [3/6] Decode
     let t = Instant::now();
@@ -110,69 +120,121 @@ pub fn compress_image_internal(
         })?;
     info!(
         "[compress] DECODE file={} dims={}x{} color={:?} elapsed={}ms",
-        file_name, image.width(), image.height(), image.color(), t.elapsed().as_millis()
+        file_name,
+        image.width(),
+        image.height(),
+        image.color(),
+        t.elapsed().as_millis()
     );
 
     // [4/6] Color space + resize
-    let target_format = resolve_target_format(request.output_format, format);
-    let image = pre_convert_color_space(image, target_format);
+    let has_alpha = image.color().has_alpha();
+    let target_format = resolve_target_format(request.output_format, format, has_alpha);
+    let pre_converted = pre_convert_image(image, target_format);
 
-    let pre_resize_w = image.width();
-    let pre_resize_h = image.height();
+    let pre_resize_w = pre_converted.width();
+    let pre_resize_h = pre_converted.height();
     let t = Instant::now();
-    let image = apply_resize(image, &request.resize_mode);
-    let post_resize_w = image.width();
-    let post_resize_h = image.height();
-    if pre_resize_w != post_resize_w || pre_resize_h != post_resize_h {
+    let pre_converted = apply_resize_preconverted(pre_converted, &request.resize_mode);
+    let final_width = pre_converted.width();
+    let final_height = pre_converted.height();
+    if pre_resize_w != final_width || pre_resize_h != final_height {
         info!(
             "[compress] RESIZE file={} from={}x{} to={}x{} mode={:?} elapsed={}ms",
-            file_name, pre_resize_w, pre_resize_h, post_resize_w, post_resize_h,
-            request.resize_mode, t.elapsed().as_millis()
+            file_name,
+            pre_resize_w,
+            pre_resize_h,
+            final_width,
+            final_height,
+            request.resize_mode,
+            t.elapsed().as_millis()
         );
-    } else {
-        info!("[compress] RESIZE_SKIPPED file={} dims={}x{} (already within bounds)", file_name, pre_resize_w, pre_resize_h);
     }
 
-    // [5/6] Encode
+    // [5/6] Encode (Zero-Copy Borrowed Encoders)
     if let Some(parent) = request.output_path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let output_file = fs::File::create(&request.output_path)?;
-    let mut buffered_writer = BufWriter::with_capacity(WRITE_BUFFER, output_file);
-    let final_width = image.width();
-    let final_height = image.height();
 
     let t = Instant::now();
-    match target_format {
-        InternalOutputFormat::Jpeg => {
-            info!("[compress] ENCODE_JPEG file={} quality={}", file_name, request.quality);
-            encode_jpeg(image, request.quality, &mut buffered_writer)?;
+    let (mut encoded_bytes, mut resolved_fmt) = if let Some(target_bytes) = request.target_size_bytes {
+        if target_bytes > 0 && original_bytes > target_bytes {
+            info!(
+                "[compress] TARGET_SIZE mode active file={} target={}B",
+                file_name, target_bytes
+            );
+            optimize_to_target_size(
+                &pre_converted,
+                target_format,
+                request.png_level,
+                target_bytes,
+                has_alpha,
+            )?
+        } else {
+            let buf = encode_to_bytes(
+                &pre_converted,
+                target_format,
+                request.quality,
+                request.png_level,
+            )?;
+            (buf, target_format)
         }
-        InternalOutputFormat::Png => {
-            info!("[compress] ENCODE_PNG file={} level={}", file_name, request.png_level);
-            encode_png(image, request.png_level, &mut buffered_writer)?;
-        }
-        InternalOutputFormat::Webp => {
-            info!("[compress] ENCODE_WEBP file={} quality={}", file_name, request.quality);
-            encode_webp(image, request.quality, &mut buffered_writer)?;
-        }
-        InternalOutputFormat::Auto => {
-            info!("[compress] ENCODE_JPEG(auto) file={} quality={}", file_name, request.quality);
-            encode_jpeg(image, request.quality, &mut buffered_writer)?;
-        }
-    }
-    let encode_ms = t.elapsed().as_millis();
+    } else {
+        let mut buf = encode_to_bytes(
+            &pre_converted,
+            target_format,
+            request.quality,
+            request.png_level,
+        )?;
+        let mut current_fmt = target_format;
 
-    // [6/6] Flush + measure
-    buffered_writer.flush()?;
-    let compressed_bytes = fs::metadata(&request.output_path)?.len();
+        // GUARANTEED SIZE REDUCTION: If encoded output is larger than original file, optimize!
+        if buf.len() as u64 >= original_bytes {
+            info!("[compress] Size guard triggered for file={}: encoded ({}B) >= original ({}B), optimizing...", file_name, buf.len(), original_bytes);
+            let webp_buf = encode_to_bytes(&pre_converted, InternalOutputFormat::Webp, 75, request.png_level)?;
+            if (webp_buf.len() as u64) < original_bytes {
+                buf = webp_buf;
+                current_fmt = InternalOutputFormat::Webp;
+            } else {
+                let lower_q = (request.quality.saturating_sub(20)).max(50);
+                let jpeg_buf = encode_to_bytes(&pre_converted, InternalOutputFormat::Jpeg, lower_q, request.png_level)?;
+                if (jpeg_buf.len() as u64) < original_bytes {
+                    buf = jpeg_buf;
+                    current_fmt = InternalOutputFormat::Jpeg;
+                }
+            }
+        }
+        (buf, current_fmt)
+    };
+
+    // Absolute fallback: If output is still larger than original, copy original
+    if encoded_bytes.len() as u64 >= original_bytes
+        && matches!(request.resize_mode, InternalResizeMode::None)
+    {
+        info!("[compress] Fallback copy original file={} (guaranteeing <= original size)", file_name);
+        fs::copy(&request.input_path, &request.output_path)?;
+        encoded_bytes = fs::read(&request.output_path)?;
+        resolved_fmt = match format {
+            ImageFormat::Png => InternalOutputFormat::Png,
+            ImageFormat::WebP => InternalOutputFormat::Webp,
+            _ => InternalOutputFormat::Jpeg,
+        };
+    } else {
+        let output_file = fs::File::create(&request.output_path)?;
+        let mut buffered_writer = BufWriter::with_capacity(WRITE_BUFFER, output_file);
+        buffered_writer.write_all(&encoded_bytes)?;
+        buffered_writer.flush()?;
+    }
+
+    let encode_ms = t.elapsed().as_millis();
+    let compressed_bytes = encoded_bytes.len() as u64;
     let savings_pct = if original_bytes > 0 {
         100.0 - (compressed_bytes as f64 / original_bytes as f64 * 100.0)
     } else {
         0.0
     };
 
-    let format_str = match target_format {
+    let format_str = match resolved_fmt {
         InternalOutputFormat::Jpeg => "jpeg",
         InternalOutputFormat::Png => "png",
         InternalOutputFormat::Webp => "webp",
@@ -182,9 +244,15 @@ pub fn compress_image_internal(
 
     info!(
         "[compress] DONE file={} format={} dims={}x{} original={}B compressed={}B saved={:.1}% encode={}ms total={}ms",
-        file_name, format_str, final_width, final_height,
-        original_bytes, compressed_bytes, savings_pct,
-        encode_ms, pipeline_start.elapsed().as_millis()
+        file_name,
+        format_str,
+        final_width,
+        final_height,
+        original_bytes,
+        compressed_bytes,
+        savings_pct,
+        encode_ms,
+        pipeline_start.elapsed().as_millis()
     );
 
     Ok(InternalCompressionResponse {
@@ -250,10 +318,17 @@ fn detect_format_with_magic_bytes(
 fn resolve_target_format(
     output_format: InternalOutputFormat,
     input_format: ImageFormat,
+    has_alpha: bool,
 ) -> InternalOutputFormat {
     match output_format {
         InternalOutputFormat::Auto => match input_format {
-            ImageFormat::Png => InternalOutputFormat::Png,
+            ImageFormat::Png => {
+                if has_alpha {
+                    InternalOutputFormat::Webp
+                } else {
+                    InternalOutputFormat::Jpeg
+                }
+            }
             ImageFormat::WebP => InternalOutputFormat::Webp,
             _ => InternalOutputFormat::Jpeg,
         },
@@ -261,79 +336,105 @@ fn resolve_target_format(
     }
 }
 
-// ─── Pre-Convert Color Space ───────────────────────────────────────────────────
-// Doing color space conversion once, BEFORE resize, means:
-//  • Resize operates on the final pixel format (no wasted pixels).
-//  • JPEG encoder gets plain RGB8 (no alpha strip = no extra allocation).
-//  • WebP/PNG get RGBA8.
+// ─── Pre-Convert Image (Zero Copy Buffer Management) ──────────────────────────
+
+pub enum PreConvertedImage {
+    Rgb { width: u32, height: u32, data: Vec<u8> },
+    Rgba { width: u32, height: u32, data: Vec<u8> },
+}
+
+impl PreConvertedImage {
+    #[inline(always)]
+    pub fn width(&self) -> u32 {
+        match self {
+            Self::Rgb { width, .. } => *width,
+            Self::Rgba { width, .. } => *width,
+        }
+    }
+
+    #[inline(always)]
+    pub fn height(&self) -> u32 {
+        match self {
+            Self::Rgb { height, .. } => *height,
+            Self::Rgba { height, .. } => *height,
+        }
+    }
+}
 
 #[inline(always)]
-fn pre_convert_color_space(image: DynamicImage, target: InternalOutputFormat) -> DynamicImage {
+fn pre_convert_image(image: DynamicImage, target: InternalOutputFormat) -> PreConvertedImage {
+    let (w, h) = (image.width(), image.height());
     match target {
-        // JPEG cannot encode alpha; strip to RGB8 now.
-        InternalOutputFormat::Jpeg | InternalOutputFormat::Auto => {
-            if image.color().has_alpha() {
-                DynamicImage::ImageRgb8(image.into_rgb8())
-            } else {
-                image
+        InternalOutputFormat::Jpeg => {
+            let rgb = image.into_rgb8();
+            PreConvertedImage::Rgb {
+                width: w,
+                height: h,
+                data: rgb.into_raw(),
             }
         }
-        // PNG & WebP support alpha; keep RGBA8.
-        InternalOutputFormat::Png | InternalOutputFormat::Webp => {
-            if image.color().channel_count() < 4 {
-                DynamicImage::ImageRgba8(image.into_rgba8())
+        InternalOutputFormat::Png | InternalOutputFormat::Webp | InternalOutputFormat::Auto => {
+            if image.color().has_alpha() {
+                let rgba = image.into_rgba8();
+                PreConvertedImage::Rgba {
+                    width: w,
+                    height: h,
+                    data: rgba.into_raw(),
+                }
             } else {
-                image
+                let rgb = image.into_rgb8();
+                PreConvertedImage::Rgb {
+                    width: w,
+                    height: h,
+                    data: rgb.into_raw(),
+                }
             }
         }
     }
 }
 
 // ─── Resize ───────────────────────────────────────────────────────────────────
-// Hardware SIMD-accelerated resizing via `fast_image_resize` (ARM NEON / AVX2).
-// CatmullRom (bicubic convolution) provides optimal edge sharpness and quality.
 
 use fast_image_resize as fr;
 
-fn apply_resize(image: DynamicImage, mode: &InternalResizeMode) -> DynamicImage {
-    let width = image.width();
-    let height = image.height();
-
+fn apply_resize_preconverted(
+    img: PreConvertedImage,
+    mode: &InternalResizeMode,
+) -> PreConvertedImage {
+    let (width, height) = (img.width(), img.height());
     if width == 0 || height == 0 {
-        return image;
+        return img;
     }
 
-    let (next_width, next_height, exact) = match mode {
-        InternalResizeMode::None => return image,
+    let (next_width, next_height) = match mode {
+        InternalResizeMode::None => return img,
         InternalResizeMode::MaxLongEdge { value } => {
-            let max_long_edge = *value;
+            let max_long = *value;
             let long_edge = width.max(height);
-            if long_edge <= max_long_edge {
-                return image;
+            if long_edge <= max_long {
+                return img;
             }
-            let scale = max_long_edge as f64 / long_edge as f64;
+            let scale = max_long as f64 / long_edge as f64;
             (
                 ((width as f64 * scale).round() as u32).max(1),
                 ((height as f64 * scale).round() as u32).max(1),
-                false,
             )
         }
         InternalResizeMode::ExactSize {
-            width: target_width,
-            height: target_height,
+            width: tw,
+            height: th,
             keep_aspect_ratio,
         } => {
-            let target_w = (*target_width).max(1);
-            let target_h = (*target_height).max(1);
+            let target_w = (*tw).max(1);
+            let target_h = (*th).max(1);
             if *keep_aspect_ratio {
                 let scale = (target_w as f64 / width as f64).min(target_h as f64 / height as f64);
                 (
                     ((width as f64 * scale).round() as u32).max(1),
                     ((height as f64 * scale).round() as u32).max(1),
-                    false,
                 )
             } else {
-                (target_w, target_h, true)
+                (target_w, target_h)
             }
         }
         InternalResizeMode::ScalePercentage { percentage } => {
@@ -341,133 +442,147 @@ fn apply_resize(image: DynamicImage, mode: &InternalResizeMode) -> DynamicImage 
             (
                 ((width as f64 * scale).round() as u32).max(1),
                 ((height as f64 * scale).round() as u32).max(1),
-                false,
             )
         }
     };
 
     if next_width == width && next_height == height {
-        return image;
+        return img;
     }
 
-    let pixel_type = match image.color() {
-        ColorType::Rgb8 => fr::PixelType::U8x3,
-        ColorType::Rgba8 => fr::PixelType::U8x4,
-        ColorType::L8 => fr::PixelType::U8,
-        ColorType::La8 => fr::PixelType::U8x2,
-        _ => {
-            return if exact {
-                image.resize_exact(next_width, next_height, image::imageops::FilterType::CatmullRom)
-            } else {
-                image.resize(next_width, next_height, image::imageops::FilterType::CatmullRom)
+    let (pixel_type, mut src_bytes) = match img {
+        PreConvertedImage::Rgb { data, .. } => (fr::PixelType::U8x3, data),
+        PreConvertedImage::Rgba { data, .. } => (fr::PixelType::U8x4, data),
+    };
+
+    let src_image = match fr::images::Image::from_slice_u8(width, height, &mut src_bytes, pixel_type) {
+        Ok(i) => i,
+        Err(_) => {
+            return match pixel_type {
+                fr::PixelType::U8x3 => PreConvertedImage::Rgb { width, height, data: src_bytes },
+                _ => PreConvertedImage::Rgba { width, height, data: src_bytes },
             };
         }
     };
 
-    let mut src_bytes = image.as_bytes().to_vec();
-    let src_image = match fr::images::Image::from_slice_u8(width, height, &mut src_bytes, pixel_type) {
-        Ok(img) => img,
-        Err(_) => return image,
-    };
-
     let mut dst_image = fr::images::Image::new(next_width, next_height, pixel_type);
-
     let mut resizer = fr::Resizer::new();
     let options = fr::ResizeOptions::new().resize_alg(fr::ResizeAlg::Convolution(fr::FilterType::CatmullRom));
 
     if resizer.resize(&src_image, &mut dst_image, &options).is_err() {
-        return image;
+        return match pixel_type {
+            fr::PixelType::U8x3 => PreConvertedImage::Rgb { width, height, data: src_bytes },
+            _ => PreConvertedImage::Rgba { width, height, data: src_bytes },
+        };
     }
 
     let buffer = dst_image.into_vec();
-
     match pixel_type {
-        fr::PixelType::U8x3 => {
-            image::ImageBuffer::from_raw(next_width, next_height, buffer)
-                .map(DynamicImage::ImageRgb8)
-                .unwrap_or(image)
-        }
-        fr::PixelType::U8x4 => {
-            image::ImageBuffer::from_raw(next_width, next_height, buffer)
-                .map(DynamicImage::ImageRgba8)
-                .unwrap_or(image)
-        }
-        fr::PixelType::U8 => {
-            image::ImageBuffer::from_raw(next_width, next_height, buffer)
-                .map(DynamicImage::ImageLuma8)
-                .unwrap_or(image)
-        }
-        fr::PixelType::U8x2 => {
-            image::ImageBuffer::from_raw(next_width, next_height, buffer)
-                .map(DynamicImage::ImageLumaA8)
-                .unwrap_or(image)
-        }
-        _ => image,
+        fr::PixelType::U8x3 => PreConvertedImage::Rgb {
+            width: next_width,
+            height: next_height,
+            data: buffer,
+        },
+        _ => PreConvertedImage::Rgba {
+            width: next_width,
+            height: next_height,
+            data: buffer,
+        },
     }
 }
 
-// ─── JPEG Encoder ─────────────────────────────────────────────────────────────
-// The `image` crate's JPEG encoder wraps zune-jpeg (pure-Rust, SIMD on x86/ARM).
-// No additional tuning needed; quality is the single control knob.
+// ─── Encoders (Zero-Copy Borrowed Memory Execution) ───────────────────────────
 
-fn encode_jpeg<W: Write>(
-    image: DynamicImage,
+fn encode_to_bytes(
+    img: &PreConvertedImage,
+    target_format: InternalOutputFormat,
+    quality: u8,
+    png_level: u8,
+) -> Result<Vec<u8>, ImageEngineError> {
+    let mut buf = Vec::with_capacity(256 * 1024);
+    match target_format {
+        InternalOutputFormat::Jpeg => {
+            encode_jpeg_ref(img, quality, &mut buf)?;
+        }
+        InternalOutputFormat::Png => {
+            encode_png_ref(img, png_level, &mut buf)?;
+        }
+        InternalOutputFormat::Webp => {
+            encode_webp_ref(img, quality, &mut buf)?;
+        }
+        InternalOutputFormat::Auto => {
+            encode_jpeg_ref(img, quality, &mut buf)?;
+        }
+    }
+    Ok(buf)
+}
+
+fn encode_jpeg_ref<W: Write>(
+    img: &PreConvertedImage,
     quality: u8,
     writer: &mut W,
 ) -> Result<(), ImageEngineError> {
-    // image was pre-converted to RGB8 in pre_convert_color_space — no-op branch.
-    let rgb = image.into_rgb8();
     let encoder = JpegEncoder::new_with_quality(writer, quality);
-    encoder
-        .write_image(rgb.as_raw(), rgb.width(), rgb.height(), ColorType::Rgb8.into())
-        .map_err(|e| ImageEngineError::Encode(e.to_string()))?;
+    match img {
+        PreConvertedImage::Rgb { width, height, data } => {
+            encoder
+                .write_image(data, *width, *height, ColorType::Rgb8.into())
+                .map_err(|e| ImageEngineError::Encode(e.to_string()))?;
+        }
+        PreConvertedImage::Rgba { width, height, data } => {
+            // Strip alpha on the fly
+            let mut rgb_data = Vec::with_capacity((width * height * 3) as usize);
+            for chunk in data.chunks_exact(4) {
+                rgb_data.push(chunk[0]);
+                rgb_data.push(chunk[1]);
+                rgb_data.push(chunk[2]);
+            }
+            encoder
+                .write_image(&rgb_data, *width, *height, ColorType::Rgb8.into())
+                .map_err(|e| ImageEngineError::Encode(e.to_string()))?;
+        }
+    }
     Ok(())
 }
 
-// ─── PNG Encoder ──────────────────────────────────────────────────────────────
-// Strategy:
-//  • Fast (level 0-3): CompressionType::Fast + FilterType::Sub
-//    → Fastest possible path. Sub filter is O(1) per pixel, Fast deflate.
-//  • Balanced (level 4-6): CompressionType::Default + FilterType::Sub
-//    → Good compression, still quick. Adaptive filter scans 5 variants per row
-//    which is 5x slower for the filter pass alone.
-//  • Best (level 7+): CompressionType::Best + FilterType::Adaptive
-//    → Squeeze every byte. Used only when user explicitly wants max compression.
-
-fn encode_png<W: Write>(
-    image: DynamicImage,
+fn encode_png_ref<W: Write>(
+    img: &PreConvertedImage,
     png_level: u8,
     writer: &mut W,
 ) -> Result<(), ImageEngineError> {
-    let rgba = image.into_rgba8();
     let (compression, filter) = match png_level {
         0..=3 => (CompressionType::Fast, FilterType::Sub),
         4..=6 => (CompressionType::Default, FilterType::Sub),
         _ => (CompressionType::Best, FilterType::Adaptive),
     };
     let encoder = PngEncoder::new_with_quality(writer, compression, filter);
-    encoder
-        .write_image(rgba.as_raw(), rgba.width(), rgba.height(), ColorType::Rgba8.into())
-        .map_err(|e| ImageEngineError::Encode(e.to_string()))?;
+
+    match img {
+        PreConvertedImage::Rgb { width, height, data } => {
+            encoder
+                .write_image(data, *width, *height, ColorType::Rgb8.into())
+                .map_err(|e| ImageEngineError::Encode(e.to_string()))?;
+        }
+        PreConvertedImage::Rgba { width, height, data } => {
+            encoder
+                .write_image(data, *width, *height, ColorType::Rgba8.into())
+                .map_err(|e| ImageEngineError::Encode(e.to_string()))?;
+        }
+    }
     Ok(())
 }
 
-// ─── WebP Encoder ─────────────────────────────────────────────────────────────
-// Hardware-accelerated lossy & lossless WebP encoding via Google's `libwebp` C library.
-// Provides 30%-50% smaller file sizes than JPEG at identical visual quality (SSIM).
-
-fn encode_webp<W: Write>(
-    image: DynamicImage,
+fn encode_webp_ref<W: Write>(
+    img: &PreConvertedImage,
     quality: u8,
     writer: &mut W,
 ) -> Result<(), ImageEngineError> {
-    let width = image.width();
-    let height = image.height();
-    let rgba = image.into_rgba8();
+    let (width, height) = (img.width(), img.height());
+    let encoder = match img {
+        PreConvertedImage::Rgb { data, .. } => webp::Encoder::from_rgb(data, width, height),
+        PreConvertedImage::Rgba { data, .. } => webp::Encoder::from_rgba(data, width, height),
+    };
 
-    let encoder = webp::Encoder::from_rgba(rgba.as_raw(), width, height);
-
-    // If quality == 100, use lossless WebP encoding; otherwise use lossy WebP at specified quality
     let webp_data = if quality >= 100 {
         encoder.encode_lossless()
     } else {
@@ -479,4 +594,118 @@ fn encode_webp<W: Write>(
         .map_err(|e| ImageEngineError::Encode(e.to_string()))?;
     Ok(())
 }
+
+// ─── Adaptive Multi-Tier Target Size Optimizer ─────────────────────────────────
+
+fn optimize_to_target_size(
+    img: &PreConvertedImage,
+    initial_format: InternalOutputFormat,
+    png_level: u8,
+    target_bytes: u64,
+    has_alpha: bool,
+) -> Result<(Vec<u8>, InternalOutputFormat), ImageEngineError> {
+    let mut current_format = initial_format;
+
+    // Step 1: Auto-switch format if PNG is requested (PNG is lossless and cannot fit tight size targets)
+    if current_format == InternalOutputFormat::Png || current_format == InternalOutputFormat::Auto {
+        current_format = if has_alpha {
+            InternalOutputFormat::Webp
+        } else {
+            InternalOutputFormat::Jpeg
+        };
+    }
+
+    // Attempt 1: 8-Iteration Precision Binary Search on Quality
+    if let Some((buf, fmt)) = binary_search_quality(img, current_format, png_level, target_bytes)? {
+        return Ok((buf, fmt));
+    }
+
+    // Attempt 2: If JPEG failed at minimum quality, switch to WebP (30-50% superior compression density)
+    if current_format == InternalOutputFormat::Jpeg {
+        current_format = InternalOutputFormat::Webp;
+        if let Some((buf, fmt)) = binary_search_quality(img, current_format, png_level, target_bytes)? {
+            return Ok((buf, fmt));
+        }
+    }
+
+    // Attempt 3: Iterative SIMD Resolution Downscaling using fast_image_resize
+    let test_buf = encode_to_bytes(img, current_format, 15, png_level)?;
+    let ref_bytes = (test_buf.len() as u64).max(1);
+
+    // Compute estimated 2D scale factor based on area ratio
+    let mut scale_factor = ((target_bytes as f64 / ref_bytes as f64).sqrt() * 0.95).clamp(0.05, 0.90);
+    let mut last_scaled_img: Option<PreConvertedImage> = None;
+
+    for _ in 0..4 {
+        let resize_mode = InternalResizeMode::ScalePercentage {
+            percentage: (scale_factor * 100.0) as f32,
+        };
+
+        let scaled_img = match img {
+            PreConvertedImage::Rgb { width, height, data } => {
+                apply_resize_preconverted(
+                    PreConvertedImage::Rgb { width: *width, height: *height, data: data.clone() },
+                    &resize_mode,
+                )
+            }
+            PreConvertedImage::Rgba { width, height, data } => {
+                apply_resize_preconverted(
+                    PreConvertedImage::Rgba { width: *width, height: *height, data: data.clone() },
+                    &resize_mode,
+                )
+            }
+        };
+
+        if let Some((buf, fmt)) = binary_search_quality(&scaled_img, current_format, png_level, target_bytes)? {
+            return Ok((buf, fmt));
+        }
+
+        last_scaled_img = Some(scaled_img);
+        scale_factor *= 0.65;
+        if scale_factor < 0.02 {
+            break;
+        }
+    }
+
+    // Strict Target Size Enforcer Guard: Absolute fallback at low quality & resolution
+    let fallback_img = last_scaled_img.as_ref().unwrap_or(img);
+    let buf = encode_to_bytes(fallback_img, current_format, 1, png_level)?;
+    Ok((buf, current_format))
+}
+
+fn binary_search_quality(
+    img: &PreConvertedImage,
+    target_format: InternalOutputFormat,
+    png_level: u8,
+    target_bytes: u64,
+) -> Result<Option<(Vec<u8>, InternalOutputFormat)>, ImageEngineError> {
+    let mut low = 1u8;
+    let mut high = 98u8;
+    let mut best_bytes: Option<Vec<u8>> = None;
+
+    // 8-step binary search: 2^8 = 256 states -> precision down to single integer quality
+    for _ in 0..8 {
+        let q = ((low as u16 + high as u16) / 2) as u8;
+        let buf = encode_to_bytes(img, target_format, q, png_level)?;
+        let len = buf.len() as u64;
+
+        if len <= target_bytes {
+            best_bytes = Some(buf);
+            low = q + 1;
+        } else {
+            high = q.saturating_sub(1);
+        }
+
+        if low > high {
+            break;
+        }
+    }
+
+    if let Some(buf) = best_bytes {
+        Ok(Some((buf, target_format)))
+    } else {
+        Ok(None)
+    }
+}
+
 

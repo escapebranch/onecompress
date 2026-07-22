@@ -206,6 +206,7 @@ impl SseDecode for crate::api::image_engine::CompressionRequest {
         let mut var_resizeMode = <crate::api::image_engine::ResizeMode>::sse_decode(deserializer);
         let mut var_outputFormat =
             <crate::api::image_engine::OutputFormat>::sse_decode(deserializer);
+        let mut var_targetSizeBytes = <Option<u64>>::sse_decode(deserializer);
         return crate::api::image_engine::CompressionRequest {
             id: var_id,
             input_path: var_inputPath,
@@ -214,6 +215,7 @@ impl SseDecode for crate::api::image_engine::CompressionRequest {
             png_level: var_pngLevel,
             resize_mode: var_resizeMode,
             output_format: var_outputFormat,
+            target_size_bytes: var_targetSizeBytes,
         };
     }
 }
@@ -316,6 +318,17 @@ impl SseDecode for Option<String> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u64>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -631,6 +644,7 @@ impl SseEncode for crate::api::image_engine::CompressionRequest {
         <u8>::sse_encode(self.png_level, serializer);
         <crate::api::image_engine::ResizeMode>::sse_encode(self.resize_mode, serializer);
         <crate::api::image_engine::OutputFormat>::sse_encode(self.output_format, serializer);
+        <Option<u64>>::sse_encode(self.target_size_bytes, serializer);
     }
 }
 
@@ -710,6 +724,16 @@ impl SseEncode for Option<String> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <String>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u64>::sse_encode(value, serializer);
         }
     }
 }

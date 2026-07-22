@@ -16,6 +16,7 @@ class NativeImageEngineBridge {
     required int pngLevel,
     required frb.ResizeMode resizeMode,
     required frb.OutputFormat outputFormat,
+    BigInt? targetSizeBytes,
   }) {
     throw UnsupportedError(
       'Native image engine is not available on this platform.',

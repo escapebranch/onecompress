@@ -56,17 +56,34 @@ class RustFfiImageEngineDataSource implements ImageEngineDataSource {
         pngLevel: preset.pngLevel,
         resizeMode: _mapResizeMode(preset.resizeMode),
         outputFormat: _mapOutputFormat(image.format, preset.targetFormat),
+        targetSizeBytes: preset.targetSizeBytes != null ? BigInt.from(preset.targetSizeBytes!) : null,
       );
+      var finalOutputPath = result.outputPath;
+      final actualExt = '.${result.format}';
+      if (path.extension(finalOutputPath) != actualExt) {
+        final newPath = path.join(
+          path.dirname(finalOutputPath),
+          '${path.basenameWithoutExtension(finalOutputPath)}$actualExt',
+        );
+        AppLog.info(_tag, 'compressImage() renamed output from $finalOutputPath to $newPath due to size guard format change');
+        final file = File(finalOutputPath);
+        if (await file.exists()) {
+          await file.rename(newPath);
+        }
+        finalOutputPath = newPath;
+      }
+
       AppLog.info(
         _tag,
-        'compressImage() SUCCESS file=${image.fileName} '
+        'compressImage() OK file=${image.fileName} '
         'original=${result.originalBytes}B compressed=${result.compressedBytes}B '
         'dims=${result.width}x${result.height}',
       );
+
       return CompressedImage(
         source: image,
-        outputPath: result.outputPath,
-        outputFileName: outputFileName,
+        outputPath: finalOutputPath,
+        outputFileName: path.basename(finalOutputPath),
         originalBytes: result.originalBytes,
         compressedBytes: result.compressedBytes,
       );
@@ -122,6 +139,7 @@ class RustFfiImageEngineDataSource implements ImageEngineDataSource {
           pngLevel: preset.pngLevel,
           resizeMode: _mapResizeMode(preset.resizeMode),
           outputFormat: _mapOutputFormat(img.format, preset.targetFormat),
+          targetSizeBytes: preset.targetSizeBytes != null ? BigInt.from(preset.targetSizeBytes!) : null,
         ),
       );
     }
@@ -151,6 +169,21 @@ class RustFfiImageEngineDataSource implements ImageEngineDataSource {
 
         if (progress.success && progress.response != null) {
           final resp = progress.response!;
+          var finalOutputPath = resp.outputPath;
+          final actualExt = '.${resp.format}';
+          if (path.extension(finalOutputPath) != actualExt) {
+            final newPath = path.join(
+              path.dirname(finalOutputPath),
+              '${path.basenameWithoutExtension(finalOutputPath)}$actualExt',
+            );
+            AppLog.info(_tag, 'compressBatchStream() renamed output from $finalOutputPath to $newPath due to size guard format change');
+            final file = File(finalOutputPath);
+            if (await file.exists()) {
+              await file.rename(newPath);
+            }
+            finalOutputPath = newPath;
+          }
+
           AppLog.info(
             _tag,
             'compressBatchStream() OK file=${source.fileName} '
@@ -159,8 +192,8 @@ class RustFfiImageEngineDataSource implements ImageEngineDataSource {
           );
           final result = CompressedImage(
             source: source,
-            outputPath: resp.outputPath,
-            outputFileName: path.basename(resp.outputPath),
+            outputPath: finalOutputPath,
+            outputFileName: path.basename(finalOutputPath),
             originalBytes: resp.originalBytes,
             compressedBytes: resp.compressedBytes,
           );

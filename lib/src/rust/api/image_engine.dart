@@ -35,6 +35,7 @@ class CompressionRequest {
   final int pngLevel;
   final ResizeMode resizeMode;
   final OutputFormat outputFormat;
+  final BigInt? targetSizeBytes;
 
   const CompressionRequest({
     required this.id,
@@ -44,6 +45,7 @@ class CompressionRequest {
     required this.pngLevel,
     required this.resizeMode,
     required this.outputFormat,
+    this.targetSizeBytes,
   });
 
   @override
@@ -54,7 +56,8 @@ class CompressionRequest {
       quality.hashCode ^
       pngLevel.hashCode ^
       resizeMode.hashCode ^
-      outputFormat.hashCode;
+      outputFormat.hashCode ^
+      targetSizeBytes.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -67,7 +70,8 @@ class CompressionRequest {
           quality == other.quality &&
           pngLevel == other.pngLevel &&
           resizeMode == other.resizeMode &&
-          outputFormat == other.outputFormat;
+          outputFormat == other.outputFormat &&
+          targetSizeBytes == other.targetSizeBytes;
 }
 
 class CompressionResponse {

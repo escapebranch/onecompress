@@ -61,8 +61,9 @@ class NativeImageEngineBridge {
     required int pngLevel,
     required frb.ResizeMode resizeMode,
     required frb.OutputFormat outputFormat,
+    BigInt? targetSizeBytes,
   }) async {
-    AppLog.info('Bridge', 'compress() id=$id inputPath=$inputPath quality=$quality');
+    AppLog.info('Bridge', 'compress() id=$id inputPath=$inputPath quality=$quality targetSizeBytes=$targetSizeBytes');
     await ensureInitialized();
 
     final sw = Stopwatch()..start();
@@ -74,6 +75,7 @@ class NativeImageEngineBridge {
       pngLevel: pngLevel,
       resizeMode: resizeMode,
       outputFormat: outputFormat,
+      targetSizeBytes: targetSizeBytes,
     );
 
     try {

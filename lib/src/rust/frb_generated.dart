@@ -717,6 +717,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_8(self.pngLevel, serializer);
     sse_encode_resize_mode(self.resizeMode, serializer);
     sse_encode_output_format(self.outputFormat, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.targetSizeBytes, serializer);
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(
+    BigInt? self,
+    SseSerializer serializer,
+  ) {
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_u_64(self, serializer);
+    }
   }
 
   @protected

@@ -103,6 +103,25 @@ class ImageCompressionController extends ChangeNotifier {
 
   // ─── Preset / Settings ─────────────────────────────────────────────────────
 
+  int get detectedOriginalBytes {
+    if (_selectedImages.isEmpty) return 0;
+    return totalOriginalBytes;
+  }
+
+  String get detectedOriginalSizeFormatted {
+    if (_selectedImages.isEmpty) return '0 B';
+    final bytes = detectedOriginalBytes;
+    if (bytes >= 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+    } else if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    } else if (bytes >= 1024) {
+      return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    } else {
+      return '$bytes B';
+    }
+  }
+
   void selectPreset(CompressionPreset preset) {
     _preset = preset;
     notifyListeners();
@@ -115,6 +134,17 @@ class ImageCompressionController extends ChangeNotifier {
       description: 'Fine-tuned custom parameters.',
       quality: quality.round(),
       pngLevel: _mapPngLevel(quality.round()),
+      targetSizeBytes: null,
+    );
+    notifyListeners();
+  }
+
+  void updateTargetSizeBytes(int? bytes) {
+    _preset = _preset.copyWith(
+      id: 'custom_target_size',
+      label: 'Target Size',
+      description: 'Compressing to target size.',
+      targetSizeBytes: bytes,
     );
     notifyListeners();
   }

@@ -33,8 +33,20 @@ class RasterImageEngineDataSource implements ImageEngineDataSource {
     }
 
     final transformed = _resizeIfNeeded(decoded, preset.resizeMode);
-    final targetExt = _resolveExtension(image.format, preset.targetFormat);
-    final encoded = _encodeImage(transformed, targetExt, preset);
+    var targetExt = _resolveExtension(image.format, preset.targetFormat);
+    var encoded = _encodeImage(transformed, targetExt, preset);
+
+    if (encoded.length >= image.originalBytes &&
+        preset.resizeMode == const ImageResizeMode.none()) {
+      final fallbackEncoded = img.encodeJpg(transformed, quality: 60);
+      if (fallbackEncoded.length < image.originalBytes) {
+        encoded = fallbackEncoded;
+        targetExt = '.jpg';
+      } else {
+        encoded = inputBytes;
+        targetExt = path.extension(image.fileName);
+      }
+    }
 
     final outputDirectory = await Directory.systemTemp.createTemp(
       'onecompress',
@@ -106,6 +118,49 @@ class RasterImageEngineDataSource implements ImageEngineDataSource {
     String ext,
     CompressionPreset preset,
   ) {
+    if (preset.isTargetSizeMode) {
+      final targetBytes = preset.targetSizeBytes!;
+      var formatExt = ext == '.png' ? '.jpg' : ext; // Auto-switch PNG to JPEG for lossy byte target
+      var currentImg = image;
+      List<int>? bestBytes;
+
+      for (var attempt = 0; attempt < 3; attempt++) {
+        var low = 1;
+        var high = 98;
+        List<int>? attemptBest;
+
+        for (var i = 0; i < 8; i++) {
+          final q = (low + high) ~/ 2;
+          final candidate = formatExt == '.png'
+              ? img.encodePng(currentImg, level: preset.pngLevel)
+              : img.encodeJpg(currentImg, quality: q);
+
+          if (candidate.length <= targetBytes) {
+            attemptBest = candidate;
+            low = q + 1;
+          } else {
+            high = q - 1;
+          }
+          if (low > high) break;
+        }
+
+        if (attemptBest != null) {
+          bestBytes = attemptBest;
+          break;
+        }
+
+        // Downscale image dimensions if even Quality 1 exceeds target size
+        final newWidth = math.max(1, (currentImg.width * 0.7).round());
+        final newHeight = math.max(1, (currentImg.height * 0.7).round());
+        currentImg = img.copyResize(currentImg, width: newWidth, height: newHeight);
+      }
+
+      if (bestBytes != null) {
+        return bestBytes;
+      }
+      return img.encodeJpg(currentImg, quality: 10);
+    }
+
     if (ext == '.png') {
       return img.encodePng(image, level: preset.pngLevel);
     }
