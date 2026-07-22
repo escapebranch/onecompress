@@ -58,8 +58,7 @@ void main() {
 
     expect(find.text('OneCompress'), findsOneWidget);
     expect(find.text('Compress'), findsOneWidget);
-    expect(find.text('Upscale'), findsOneWidget);
-    expect(find.text('SOON'), findsOneWidget);
+    expect(find.text('Resize'), findsOneWidget);
     expect(find.text('Recents'), findsOneWidget);
     expect(find.text('Home'), findsOneWidget);
   });

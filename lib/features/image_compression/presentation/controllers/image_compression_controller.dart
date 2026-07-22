@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/extensions/iterable_extensions.dart';
 import '../../../../core/utils/app_log.dart';
+import '../../../../core/utils/byte_formatter.dart';
 import '../../domain/entities/compressed_image.dart';
 import '../../domain/entities/compression_preset.dart';
 import '../../domain/entities/selected_image.dart';
@@ -16,6 +17,7 @@ import '../../domain/usecases/save_compressed_images_use_case.dart';
 import '../../domain/usecases/share_compressed_images_use_case.dart';
 import '../../../history/domain/entities/compression_history_item.dart';
 import '../../../history/domain/repositories/i_compression_history_repository.dart';
+import 'compression_telemetry.dart';
 
 
 class ImageCompressionController extends ChangeNotifier {
@@ -52,13 +54,8 @@ class ImageCompressionController extends ChangeNotifier {
 
   // ─── Progress Telemetry ────────────────────────────────────────────────────
 
-  int _completedCount = 0;
-  int _totalCount = 0;
+  CompressionTelemetry _telemetry = const CompressionTelemetry();
   DateTime? _compressionStartTime;
-  int _elapsedMilliseconds = 0;
-  double _processingSpeedMBps = 0.0;
-  // Running sum of processed original bytes for speed calculation (avoids re-folding the list).
-  int _processedOriginalBytes = 0;
   StreamSubscription<dynamic>? _compressionSubscription;
 
   // ─── Getters ────────────────────────────────────────────────────────────────
@@ -67,27 +64,21 @@ class ImageCompressionController extends ChangeNotifier {
   List<CompressedImage> get compressedImages => List.unmodifiable(_compressedImages);
   CompressionPreset get preset => _preset;
   bool get isCompressing => _isCompressing;
-  int get completedCount => _completedCount;
-  int get totalCount => _totalCount;
+  CompressionTelemetry get telemetry => _telemetry;
+  int get completedCount => _telemetry.completedCount;
+  int get totalCount => _telemetry.totalCount;
   String? get statusMessage => _statusMessage;
   String? get errorMessage => _errorMessage;
-  int get elapsedMilliseconds => _elapsedMilliseconds;
-  double get processingSpeedMBps => _processingSpeedMBps;
+  int get elapsedMilliseconds => _telemetry.elapsedMilliseconds;
+  double get processingSpeedMBps => _telemetry.processingSpeedMBps;
 
   /// Progress as 0.0–1.0. Returns 0 when no compression is running.
-  double get progress => _totalCount == 0 ? 0 : (_completedCount / _totalCount).clamp(0.0, 1.0);
+  double get progress => _telemetry.progress;
 
   /// Estimated seconds remaining based on current throughput.
   /// Returns null when there is no meaningful data.
-  double? get estimatedSecondsRemaining {
-    if (!_isCompressing || _completedCount == 0 || _totalCount == 0) return null;
-    if (_elapsedMilliseconds <= 0) return null;
-    final elapsedSec = _elapsedMilliseconds / 1000.0;
-    final rate = _completedCount / elapsedSec; // images per second
-    final remaining = _totalCount - _completedCount;
-    if (rate <= 0) return null;
-    return remaining / rate;
-  }
+  double? get estimatedSecondsRemaining =>
+      _isCompressing ? _telemetry.estimatedSecondsRemaining : null;
 
   int get totalOriginalBytes =>
       _selectedImages.fold(0, (sum, image) => sum + image.originalBytes);
@@ -96,9 +87,10 @@ class ImageCompressionController extends ChangeNotifier {
       _compressedImages.fold(0, (sum, image) => sum + image.compressedBytes);
 
   double get savedPercentage {
-    if (_processedOriginalBytes == 0 || _compressedImages.isEmpty) return 0;
-    final saved = _processedOriginalBytes - totalCompressedBytes;
-    return ((saved / _processedOriginalBytes) * 100).clamp(0.0, 100.0);
+    final processedBytes = _telemetry.processedOriginalBytes;
+    if (processedBytes == 0 || _compressedImages.isEmpty) return 0;
+    final saved = processedBytes - totalCompressedBytes;
+    return ((saved / processedBytes) * 100).clamp(0.0, 100.0);
   }
 
   // ─── Preset / Settings ─────────────────────────────────────────────────────
@@ -110,16 +102,7 @@ class ImageCompressionController extends ChangeNotifier {
 
   String get detectedOriginalSizeFormatted {
     if (_selectedImages.isEmpty) return '0 B';
-    final bytes = detectedOriginalBytes;
-    if (bytes >= 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-    } else if (bytes >= 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    } else if (bytes >= 1024) {
-      return '${(bytes / 1024).toStringAsFixed(0)} KB';
-    } else {
-      return '$bytes B';
-    }
+    return formatBytes(detectedOriginalBytes);
   }
 
   void selectPreset(CompressionPreset preset) {
@@ -255,7 +238,7 @@ class ImageCompressionController extends ChangeNotifier {
     _isCompressing = true;
     _compressedImages.clear();
     _resetTelemetry();
-    _totalCount = _selectedImages.length;
+    _telemetry = _telemetry.copyWith(totalCount: _selectedImages.length);
     _setError(null, notify: false);
     _statusMessage = 'Firing up ${_selectedImages.length} image${_selectedImages.length == 1 ? '' : 's'} on Rayon engine...';
     _compressionStartTime = DateTime.now();
@@ -270,11 +253,12 @@ class ImageCompressionController extends ChangeNotifier {
 
     _compressionSubscription = stream.listen(
       (update) {
-        _completedCount = update.completed;
+        var newCompleted = update.completed;
+        var newProcessedBytes = _telemetry.processedOriginalBytes;
 
         if (update.result != null) {
           _compressedImages.add(update.result!);
-          _processedOriginalBytes += update.result!.originalBytes;
+          newProcessedBytes += update.result!.originalBytes;
           
           final item = CompressionHistoryItem(
             id: 0,
@@ -295,13 +279,23 @@ class ImageCompressionController extends ChangeNotifier {
         }
 
         final now = DateTime.now();
+        var elapsedMs = _telemetry.elapsedMilliseconds;
+        var speedMBps = _telemetry.processingSpeedMBps;
+
         if (_compressionStartTime != null) {
-          _elapsedMilliseconds = now.difference(_compressionStartTime!).inMilliseconds;
-          final elapsedSeconds = _elapsedMilliseconds / 1000.0;
-          if (elapsedSeconds > 0.05 && _processedOriginalBytes > 0) {
-            _processingSpeedMBps = (_processedOriginalBytes / (1024 * 1024)) / elapsedSeconds;
+          elapsedMs = now.difference(_compressionStartTime!).inMilliseconds;
+          final elapsedSeconds = elapsedMs / 1000.0;
+          if (elapsedSeconds > 0.05 && newProcessedBytes > 0) {
+            speedMBps = ByteConverter.toMb(newProcessedBytes) / elapsedSeconds;
           }
         }
+
+        _telemetry = _telemetry.copyWith(
+          completedCount: newCompleted,
+          processedOriginalBytes: newProcessedBytes,
+          elapsedMilliseconds: elapsedMs,
+          processingSpeedMBps: speedMBps,
+        );
 
         _statusMessage = update.failure == null
             ? '${update.currentImageName}'
@@ -315,10 +309,10 @@ class ImageCompressionController extends ChangeNotifier {
           AppLog.debug(
             'Controller',
             'stream event NOTIFY #$notifyCount '
-            'completed=$_completedCount/$_totalCount '
+            'completed=${_telemetry.completedCount}/${_telemetry.totalCount} '
             'progress=${(progress * 100).toStringAsFixed(1)}% '
-            'speed=${_processingSpeedMBps.toStringAsFixed(1)}MB/s '
-            'elapsed=${_elapsedMilliseconds}ms '
+            'speed=${_telemetry.processingSpeedMBps.toStringAsFixed(1)}MB/s '
+            'elapsed=${_telemetry.elapsedMilliseconds}ms '
             'suppressed_since_last=$suppressedCount',
           );
           suppressedCount = 0;
@@ -335,12 +329,13 @@ class ImageCompressionController extends ChangeNotifier {
       onDone: () {
         _isCompressing = false;
         final now = DateTime.now();
+        var ms = _telemetry.elapsedMilliseconds;
         if (_compressionStartTime != null) {
-          _elapsedMilliseconds = now.difference(_compressionStartTime!).inMilliseconds;
+          ms = now.difference(_compressionStartTime!).inMilliseconds;
+          _telemetry = _telemetry.copyWith(elapsedMilliseconds: ms);
         }
         final count = _compressedImages.length;
-        final ms = _elapsedMilliseconds;
-        final mbps = _processingSpeedMBps.toStringAsFixed(1);
+        final mbps = _telemetry.processingSpeedMBps.toStringAsFixed(1);
         _statusMessage = count == 0
             ? 'No files were compressed.'
             : '✅ $count file${count == 1 ? '' : 's'} done in ${ms}ms · $mbps MB/s';
@@ -457,11 +452,7 @@ class ImageCompressionController extends ChangeNotifier {
   // ─── Private Helpers ───────────────────────────────────────────────────────
 
   void _resetTelemetry() {
-    _completedCount = 0;
-    _totalCount = 0;
-    _elapsedMilliseconds = 0;
-    _processingSpeedMBps = 0;
-    _processedOriginalBytes = 0;
+    _telemetry = const CompressionTelemetry();
     _compressionStartTime = null;
   }
 
