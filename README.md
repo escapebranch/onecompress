@@ -1,4 +1,4 @@
-![OneCompress Banner](docs/banner.png)
+![OneCompress Banner](docs/banner.svg)
 
 OneCompress is a high-performance, local-first media compression app built with Flutter and Rust. It pairs a fluid Material 3 Flutter UI with a multi-threaded Rust core to execute heavy image processing operations completely on-device.
 
