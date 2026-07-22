@@ -134,7 +134,7 @@ class _CompressionLoaderOverlayState extends State<CompressionLoaderOverlay> {
                             strokeCap: StrokeCap.round,
                             backgroundColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08),
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              isDark ? Colors.white : AppColors.primary,
+                              isDark ? Colors.white : AppColors.lightTextPrimary,
                             ),
                           ),
                         ),
@@ -149,13 +149,13 @@ class _CompressionLoaderOverlayState extends State<CompressionLoaderOverlay> {
                         Container(
                           width: 84,
                           height: 84,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white : AppColors.lightTextPrimary,
                             shape: BoxShape.circle,
                           ),
-                          child: const HugeIcon(
+                          child: HugeIcon(
                             icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                            color: Colors.white,
+                            color: isDark ? Colors.black : Colors.white,
                             size: 48,
                           ),
                         )

@@ -140,19 +140,17 @@ class CompressionResultsPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.darkSurface
-            : AppColors.primary.withValues(alpha: 0.04),
+        color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-          width: 1.5,
+          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
+          width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -167,7 +165,7 @@ class CompressionResultsPage extends StatelessWidget {
                   Text(
                     'TOTAL SAVINGS',
                     style: AppTypography.textTheme.labelSmall?.copyWith(
-                      color: AppColors.primary,
+                      color: isDark ? Colors.white70 : AppColors.lightTextSecondary,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.2,
                     ),
@@ -186,13 +184,13 @@ class CompressionResultsPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: isDark ? Colors.white : AppColors.lightTextPrimary,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   '-${savedPct.toStringAsFixed(0)}%',
                   style: AppTypography.textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
+                    color: isDark ? Colors.black : Colors.white,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -301,13 +299,15 @@ class CompressionResultsPage extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.12),
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.black.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           '-$itemSavedPct%',
                           style: AppTypography.textTheme.labelSmall?.copyWith(
-                            color: AppColors.primary,
+                            color: isDark ? Colors.white : AppColors.lightTextPrimary,
                             fontWeight: FontWeight.w800,
                             fontSize: 10,
                           ),

@@ -74,9 +74,9 @@ class _HeroStageWorkspaceState extends State<HeroStageWorkspace> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -117,7 +117,7 @@ class _HeroStageWorkspaceState extends State<HeroStageWorkspace> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.black.withValues(alpha: 0.75),
+                      Colors.black.withValues(alpha: 0.8),
                       Colors.transparent,
                     ],
                     begin: Alignment.topCenter,
@@ -132,13 +132,13 @@ class _HeroStageWorkspaceState extends State<HeroStageWorkspace> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            color: isDark ? Colors.white : AppColors.lightTextPrimary,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             image.format.name.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: isDark ? Colors.black : Colors.white,
                               fontWeight: FontWeight.w800,
                               fontSize: 10,
                               letterSpacing: 0.5,
@@ -234,18 +234,11 @@ class _HeroStageWorkspaceState extends State<HeroStageWorkspace> {
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
                         color: isActive
-                            ? AppColors.primary
+                            ? (isDark ? Colors.white : AppColors.lightTextPrimary)
                             : (isDark ? Colors.white24 : Colors.black12),
                         width: isActive ? 2.5 : 1.0,
                       ),
-                      boxShadow: isActive
-                          ? [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.4),
-                                blurRadius: 10,
-                              ),
-                            ]
-                          : [],
+                      boxShadow: const [],
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
