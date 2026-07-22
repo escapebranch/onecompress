@@ -7,10 +7,12 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/selected_image.dart';
 import '../controllers/image_compression_controller.dart';
+import '../widgets/compression_customization_bottom_sheet.dart';
+import '../widgets/compression_loader_overlay.dart';
 import '../widgets/format_chip_selector.dart';
-import '../widgets/studio_bottom_bar.dart';
-import '../widgets/studio_gallery_view.dart';
+import '../widgets/hero_stage_workspace.dart';
 import '../widgets/image_preview_modal.dart';
+import 'compression_results_page.dart';
 
 class ImageCompressionPage extends StatefulWidget {
   const ImageCompressionPage({required this.controller, super.key});
@@ -40,12 +42,40 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
     if (mounted) setState(() {});
   }
 
+  void _handleConfigureAndCompress(BuildContext context) {
+    if (widget.controller.selectedImages.isEmpty) {
+      widget.controller.pickImages();
+      return;
+    }
+
+    // Launch Stage 2 Customization Bottom Sheet
+    CompressionCustomizationBottomSheet.show(
+      context,
+      widget.controller,
+      onStartCompress: () {
+        // Trigger Rust/Dart compression engine
+        widget.controller.compress();
+
+        // Launch Stage 3 Micro-Animated Loader Overlay
+        CompressionLoaderOverlay.show(
+          context,
+          widget.controller,
+          () {
+            // Stage 3 completed -> Navigate to Stage 4 Results Screen
+            CompressionResultsPage.navigate(context, widget.controller);
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final hasCompressedImages = controller.compressedImages.isNotEmpty;
+    final hasSelectedImages = controller.selectedImages.isNotEmpty;
+    final count = controller.selectedImages.length;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -53,9 +83,9 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const HugeIcon(
+          icon: HugeIcon(
             icon: HugeIcons.strokeRoundedArrowLeft01,
-            color: Colors.white,
+            color: isDark ? Colors.white : AppColors.lightTextPrimary,
             size: 24,
           ),
           onPressed: () => Navigator.of(context).maybePop(),
@@ -63,25 +93,12 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
         title: Text(
           'Compress Studio',
           style: AppTypography.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
             color: isDark ? Colors.white : AppColors.lightTextPrimary,
           ),
         ),
         actions: [
-          // Header Download Button (Wireframe 3)
-          if (hasCompressedImages)
-            IconButton(
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedDownload01,
-                color: AppColors.primary,
-                size: 22,
-              ),
-              onPressed: () => _handleSaveAll(context),
-              tooltip: 'Save All Compressed Images',
-            ),
-
-          // Clear Selection Button
-          if (controller.selectedImages.isNotEmpty)
+          if (hasSelectedImages)
             IconButton(
               icon: const HugeIcon(
                 icon: HugeIcons.strokeRoundedDelete02,
@@ -99,7 +116,7 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
           children: [
             const SizedBox(height: AppSpacing.xs),
 
-            // 1. TOP FORMAT CHIPS STRIP (Wireframe 1: Supported Types chip-styled)
+            // 1. TOP FORMAT CHIPS STRIP
             FormatChipSelector(
               selectedType: _selectedMediaType,
               onSelectType: (type) {
@@ -107,69 +124,62 @@ class _ImageCompressionPageState extends State<ImageCompressionPage> {
               },
             ),
 
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
 
-            // 2. MAIN GALLERY WORKSPACE
+            // 2. HERO STAGE WORKSPACE (LOCKED NON-SCROLLABLE 60% VIEWPORT CANVAS)
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
+              child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Column(
-                  children: [
-                    StudioGalleryView(
-                      controller: controller,
-                      onPickImages: controller.pickImages,
-                      onTapImageItem: (item) => _handleImageItemTap(context, item),
-                    )
-                        .animate()
-                        .fadeIn(duration: 350.ms)
-                        .slideY(begin: 0.03, end: 0),
-                    const SizedBox(height: AppSpacing.xl),
-                  ],
+                child: HeroStageWorkspace(
+                  controller: controller,
+                  onPickImages: controller.pickImages,
+                  onAddMoreImages: controller.addMoreImages,
+                  onTapImageItem: (item) => _handleImageItemTap(context, item),
                 ),
               ),
             ),
 
-            // 3. DOCKED BOTTOM BAR COMMANDER (Wireframes 1, 2, 3)
+            const SizedBox(height: AppSpacing.sm),
+
+            // 3. DOCKED BOTTOM ACTION COMMANDER (Stage 1 ➔ Launch Stage 2 Bottom Sheet)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: StudioBottomBar(
-                controller: controller,
-                onPickImages: controller.pickImages,
-                onCompressPressed: controller.compress,
-                onSaveAllPressed: () => _handleSaveAll(context),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () => _handleConfigureAndCompress(context),
+                  icon: HugeIcon(
+                    icon: hasSelectedImages
+                        ? HugeIcons.strokeRoundedSettings04
+                        : HugeIcons.strokeRoundedFolderAdd,
+                    color: isDark ? Colors.black : Colors.white,
+                    size: 20,
+                  ),
+                  label: Text(
+                    hasSelectedImages
+                        ? 'Configure & Compress ($count file${count == 1 ? '' : 's'})'
+                        : 'Select Images',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? Colors.white : AppColors.lightTextPrimary,
+                    foregroundColor: isDark ? Colors.black : Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    textStyle: AppTypography.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _handleSaveAll(BuildContext context) async {
-    final savePath = await widget.controller.saveCompressedImages();
-    if (!context.mounted) return;
-    if (savePath != null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle02, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Saved ${widget.controller.compressedImages.length} compressed image(s) to OneCompress folder!',
-                  ),
-                ),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-    }
   }
 
   void _handleImageItemTap(BuildContext context, SelectedImage item) {

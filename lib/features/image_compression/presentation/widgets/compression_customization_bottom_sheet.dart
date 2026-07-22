@@ -11,22 +11,27 @@ import '../controllers/image_compression_controller.dart';
 class CompressionCustomizationBottomSheet extends StatefulWidget {
   const CompressionCustomizationBottomSheet({
     required this.controller,
+    this.onStartCompress,
     super.key,
   });
 
   final ImageCompressionController controller;
+  final VoidCallback? onStartCompress;
 
   static Future<void> show(
     BuildContext context,
-    ImageCompressionController controller,
-  ) {
+    ImageCompressionController controller, {
+    VoidCallback? onStartCompress,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.6),
-      builder: (context) =>
-          CompressionCustomizationBottomSheet(controller: controller),
+      builder: (context) => CompressionCustomizationBottomSheet(
+        controller: controller,
+        onStartCompress: onStartCompress,
+      ),
     );
   }
 
@@ -819,7 +824,10 @@ class _CompressionCustomizationBottomSheetState
         width: double.infinity,
         height: 54,
         child: ElevatedButton.icon(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            Navigator.of(context).pop();
+            widget.onStartCompress?.call();
+          },
           icon: HugeIcon(
             icon: HugeIcons.strokeRoundedCheckmarkCircle02,
             color: isDark ? Colors.black : Colors.white,
