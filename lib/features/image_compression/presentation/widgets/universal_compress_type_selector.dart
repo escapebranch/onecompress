@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -29,15 +30,26 @@ class UniversalCompressTypeSelector extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedArchive01,
-                  color: AppColors.primary,
-                  size: 26,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SvgPicture.asset(
+                    'assets/svg/compress_engine.svg',
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),

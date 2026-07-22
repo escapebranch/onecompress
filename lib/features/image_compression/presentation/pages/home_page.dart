@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -7,7 +8,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../controllers/image_compression_controller.dart';
-import '../widgets/ribbon_badge.dart';
 import '../../../history/domain/entities/compression_history_item.dart';
 import '../widgets/history_item_card.dart';
 
@@ -151,102 +151,183 @@ class HomePage extends StatelessWidget {
       children: [
         // Card 1 — "Compress"
         Expanded(
-          child: GlassCard(
-            onTap: onOpenCompress,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 36),
+                child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.accentBlue.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -1.2),
+                      radius: 2.0,
+                      stops: const [0.0, 0.7],
+                      colors: [
+                        AppColors.accentBlue.withValues(alpha: isDark ? 0.6 : 0.35),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
-                  child: const HugeIcon(
-                    icon: HugeIcons.strokeRoundedArchive01,
-                    color: AppColors.accentBlue,
-                    size: 24,
+                  child: Stack(
+                    children: [
+                      GlassCard(
+                        onTap: onOpenCompress,
+                        borderColor: Colors.transparent,
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.sm, 48, AppSpacing.sm, AppSpacing.md),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Compress',
+                                style: AppTypography.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: AppSpacing.xxs),
+                              Text(
+                                'Reduce size, retain high quality',
+                                style: AppTypography.textTheme.bodySmall?.copyWith(
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                  height: 1.3,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.white.withValues(alpha: isDark ? 0.5 : 0.4),
+                                Colors.white.withValues(alpha: isDark ? 0.05 : 0.05),
+                              ],
+                              stops: const [0.0, 0.5],
+                            ).createShader(bounds),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Compress',
-                  style: AppTypography.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : AppColors.lightTextPrimary,
-                  ),
+              ),
+              Positioned(
+                top: -6,
+                child: SvgPicture.asset(
+                  'assets/svg/compress_engine.svg',
+                  width: 94,
+                  height: 94,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  'Reduce size, retain high quality',
-                  style: AppTypography.textTheme.bodySmall?.copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
 
         const SizedBox(width: AppSpacing.sm + 4),
 
-        // Card 2 — "Upscale"
+        // Card 2 — "Resize"
         Expanded(
-          child: RibbonBadge(
-            text: 'SOON',
-            child: GlassCard(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: const [
-                        HugeIcon(icon: HugeIcons.strokeRoundedSparkles, color: Colors.amber, size: 20),
-                        SizedBox(width: 8),
-                        Text('AI Upscaling Engine arriving in next update!'),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 36),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -1.2),
+                      radius: 2.0,
+                      stops: const [0.0, 0.7],
+                      colors: [
+                        Colors.amber.withValues(alpha: isDark ? 0.5 : 0.35),
+                        Colors.transparent,
                       ],
                     ),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                );
-              },
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedMaximize01,
-                      color: Colors.amber,
-                      size: 24,
-                    ),
+                  child: Stack(
+                    children: [
+                      GlassCard(
+                        onTap: () {},
+                        borderColor: Colors.transparent,
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.sm, 48, AppSpacing.sm, AppSpacing.md),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Resize',
+                                style: AppTypography.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: AppSpacing.xxs),
+                              Text(
+                                'Scale dimensions precisely',
+                                style: AppTypography.textTheme.bodySmall?.copyWith(
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                  height: 1.3,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.white.withValues(alpha: isDark ? 0.5 : 0.4),
+                                Colors.white.withValues(alpha: isDark ? 0.05 : 0.05),
+                              ],
+                              stops: const [0.0, 0.5],
+                            ).createShader(bounds),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Upscale',
-                    style: AppTypography.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : AppColors.lightTextPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    'AI resolution & detail boost',
-                    style: AppTypography.textTheme.bodySmall?.copyWith(
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              Positioned(
+                top: -6,
+                child: SvgPicture.asset(
+                  'assets/svg/resize_engine.svg',
+                  width: 94,
+                  height: 94,
+                ),
+              ),
+            ],
           ),
         ),
       ],
